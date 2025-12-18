@@ -128,12 +128,11 @@ export async function processRequest(
           CliStyle.info(`正在加载最近 ${effectiveDepth} 条历史上下文`)
         );
         entries = await getRecentHistory(effectiveDepth);
-        // 历史请求中的文件不要自动添加了
-        // entries.forEach((entry) => {
-        //   if (entry.files && entry.files.length > 0) {
-        //     files.push(...entry.files);
-        //   }
-        // });
+        entries.forEach((entry) => {
+          if (entry.files && entry.files.length > 0) {
+            files.push(...entry.files);
+          }
+        });
       }
     }
 
