@@ -36,7 +36,7 @@ export class ResponseHandler {
 
     const filesToBackup: Set<string> = new Set();
     for (const op of fileOps) {
-      if (op.type === 'writeWithReplace' || op.type === 'delete') {
+      if (op.type === 'edit' || op.type === 'delete') {
         filesToBackup.add(op.filePath);
       }
     }

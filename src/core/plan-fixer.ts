@@ -25,7 +25,7 @@ function buildFixPrompt(contexts: FixContext[]): string {
     prompt += `\n${i + 1}. 操作类型: ${ctx.operation.type}\n`;
     prompt += `   错误: ${ctx.error}\n`;
 
-    if (ctx.operation.type === 'writeWithReplace' && ctx.operation.find) {
+    if (ctx.operation.type === 'edit' && ctx.operation.find) {
       prompt += `   查找文本: ${ctx.operation.find.substring(0, 100)}${
         ctx.operation.find.length > 100 ? '...' : ''
       }\n`;
@@ -64,7 +64,7 @@ export async function autoFixOperations(
   for (const { operation, error } of failedOps) {
     const ctx: FixContext = { operation, error };
 
-    if (operation.type === 'writeWithReplace') {
+    if (operation.type === 'edit') {
       try {
         ctx.fileContent = await fs.readFile(operation.filePath, 'utf-8');
       } catch {}

@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
+// 统一操作类型定义
 export const OperationTypeSchema = z.enum([
   'response',
   'create',
-  'writeWithReplace',
+  'edit',
   'move',
   'delete'
 ]);
@@ -24,8 +25,8 @@ export const CreateOperationSchema = BaseOperationSchema.extend({
   content: z.string()
 });
 
-export const writeWithReplaceOperationSchema = BaseOperationSchema.extend({
-  type: z.literal('writeWithReplace'),
+export const EditOperationSchema = BaseOperationSchema.extend({
+  type: z.literal('edit'),
   filePath: z.string().min(1),
   find: z.string().optional(),
   content: z.string()
@@ -44,7 +45,7 @@ export const DeleteOperationSchema = BaseOperationSchema.extend({
 
 export const FileOperationSchema = z.union([
   CreateOperationSchema,
-  writeWithReplaceOperationSchema,
+  EditOperationSchema,
   MoveOperationSchema,
   DeleteOperationSchema
 ]);
@@ -136,11 +137,9 @@ export type ResponseOperation = z.infer<typeof ResponseOperationSchema>;
 export type CreateOperation = z.infer<typeof CreateOperationSchema>;
 
 /**
- * writeWithReplace 操作类型
+ * Edit 操作类型
  */
-export type writeWithReplaceOperation = z.infer<
-  typeof writeWithReplaceOperationSchema
->;
+export type EditOperation = z.infer<typeof EditOperationSchema>;
 
 /**
  * Move 操作类型

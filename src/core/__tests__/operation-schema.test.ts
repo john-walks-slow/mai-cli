@@ -19,9 +19,9 @@ describe('Operation Schema', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('should validate writeWithReplace operation', () => {
+    it('should validate edit operation', () => {
       const op = {
-        type: 'writeWithReplace',
+        type: 'edit',
         filePath: 'test.ts',
         content: 'new code',
         find: 'old code'

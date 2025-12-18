@@ -41,7 +41,7 @@ export async function executePlan(
   // 预加载需要备份的文件初始内容
   const filesToBackup: Set<string> = new Set();
   for (const op of operations) {
-    if (op.type === 'writeWithReplace' || op.type === 'delete') {
+    if (op.type === 'edit' || op.type === 'delete') {
       filesToBackup.add(op.filePath);
     }
   }
@@ -93,7 +93,7 @@ export async function executePlan(
         case 'create':
           await createFile(op.filePath, op.content);
           break;
-        case 'writeWithReplace':
+        case 'edit':
           await writeFileWithReplace(op.filePath, op.content, op.find);
           break;
 

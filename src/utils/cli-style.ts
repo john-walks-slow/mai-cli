@@ -109,8 +109,6 @@ export class CliStyle {
         return chalk.green('创建');
       case 'edit':
         return chalk.blue('编辑');
-      case 'writeWithReplace':
-        return chalk.blue('编辑替换');
       case 'rename':
         return chalk.magenta('重命名');
       case 'delete':

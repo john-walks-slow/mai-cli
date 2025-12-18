@@ -263,16 +263,15 @@ export async function undoHistory(idOrName: string): Promise<void> {
         }
         break;
 
-      case 'writeWithReplace':
-        const originalContentForReplace =
+      case 'edit':
+        const originalContentForEdit =
           entry.originalFileContents?.[op.filePath];
-        if (originalContentForReplace !== undefined) {
-          // 使用 create 来覆盖整个文件恢复原始内容
+        if (originalContentForEdit !== undefined) {
           undoOp = {
-            type: 'writeWithReplace',
+            type: 'edit',
             filePath: op.filePath,
-            content: originalContentForReplace,
-            comment: `撤销替换: 恢复 ${op.filePath} 原始内容`
+            content: originalContentForEdit,
+            comment: `撤销编辑: 恢复 ${op.filePath} 原始内容`
           };
         }
         break;

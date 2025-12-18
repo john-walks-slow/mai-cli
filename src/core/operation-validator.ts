@@ -45,8 +45,8 @@ export class OperationValidator {
       switch (op.type) {
         case 'create':
           return await this.validateCreateReachability(op);
-        case 'writeWithReplace':
-          return await this.validatewriteWithReplaceReachability(op);
+      case 'edit':
+        return await this.validateEditReachability(op);
         case 'move':
           return await this.validateMoveReachability(op);
         case 'delete':
@@ -118,9 +118,9 @@ export class OperationValidator {
   }
 
   /**
-   * 验证替换操作的可达性。
+   * 验证编辑操作的可达性。
    */
-  private static async validatewriteWithReplaceReachability(
+  private static async validateEditReachability(
     op: FileOperation
   ): Promise<ValidationResult> {
     const filePath = (op as any).filePath;
@@ -131,12 +131,12 @@ export class OperationValidator {
     try {
       const root = await findGitRoot();
       const relativePath = path.relative(root, filePath);
-      if (await isFileIgnored(relativePath)) {
-        return {
-          isValid: false,
-          errors: ['文件被 .gitignore 忽略，无法执行 writeWithReplace 操作。']
-        };
-      }
+        if (await isFileIgnored(relativePath)) {
+          return {
+            isValid: false,
+            errors: ['文件被忽略,无法执行编辑操作']
+          };
+        }
 
       // 检查文件是否存在
       await fs.access(filePath);

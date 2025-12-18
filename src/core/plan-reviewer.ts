@@ -56,7 +56,7 @@ export async function displayPlan(operations: FileOperation[]): Promise<void> {
     }
     switch (op.type) {
       case 'create':
-      case 'writeWithReplace':
+      case 'edit':
         line += CliStyle.filePath(op.filePath);
         break;
       case 'delete':
@@ -160,9 +160,9 @@ async function reviewChangesInDetail(
         );
         reviewedOperations.push(op); // 发生错误时保留原始操作
       }
-    } else if (op.type === 'writeWithReplace') {
+    } else if (op.type === 'edit') {
       console.log(
-        CliStyle.info(`\n正在显示替换内容: ${CliStyle.filePath(op.filePath)}`)
+        CliStyle.info(`\n正在显示编辑内容: ${CliStyle.filePath(op.filePath)}`)
       );
 
       try {

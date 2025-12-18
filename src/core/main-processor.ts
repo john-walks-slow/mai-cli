@@ -121,7 +121,7 @@ export async function processAiResponse(
     // 预加载需要备份的文件初始内容（仅文件操作）
     const filesToBackup: Set<string> = new Set();
     for (const op of fileOps) {
-      if (op.type === 'writeWithReplace' || op.type === 'delete') {
+      if (op.type === 'edit' || op.type === 'delete') {
         filesToBackup.add(op.filePath);
       }
     }

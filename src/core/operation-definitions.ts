@@ -49,7 +49,7 @@ type TypedOperationConfig<T extends OperationType> = {
 };
 
 type OperationConfigs = {
-  [K in Exclude<OperationType, 'edit'>]: TypedOperationConfig<K>;
+  [K in OperationType]: TypedOperationConfig<K>;
 };
 
 /**
@@ -71,7 +71,7 @@ export class OperationDescriptions {
     },
     create: {
       description:
-        '创建新文件，如果目录不存在，会递归创建目录。禁止用于修改已有文件，覆写已有文件请使用 writeWithReplace。',
+        '创建新文件，如果目录不存在，会递归创建目录。禁止用于修改已有文件，覆写已有文件请使用 edit。',
       fields: {
         type: { example: 'create' },
         filePath: {
@@ -85,11 +85,11 @@ export class OperationDescriptions {
       }
     },
 
-    writeWithReplace: {
+    edit: {
       description:
-        '编辑现有文件。find 参数留空时覆写整个文件；find 参数给定时，将查找到的目标文本替换为新文本。',
+        '编辑现有文件。find 参数留空时覆写整个文件;find 参数给定时,将查找到的目标文本替换为新文本。',
       fields: {
-        type: { example: 'writeWithReplace' },
+        type: { example: 'edit' },
         filePath: {
           example: 'path/to/file.txt'
         },
