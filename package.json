@@ -1,6 +1,6 @@
 {
   "name": "@johnnren/mai-cli",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Minimal AI Interface for file manipulating",
   "main": "dist/index.js",
   "scripts": {
