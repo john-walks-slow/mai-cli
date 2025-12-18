@@ -45,10 +45,22 @@ function generateUnifiedDiff(
   
   let diff = `--- ${filePath}\n+++ ${filePath}\n`;
   
-  // 简化的diff生成（实际应用可使用diff库）
   const maxLen = Math.max(originalLines.length, newLines.length);
   let hunkStart = -1;
   let hunkLines: string[] = [];
+  let oldCount = 0;
+  let newCount = 0;
+  
+  const flushHunk = () => {
+    if (hunkStart !== -1 && hunkLines.length > 0) {
+      diff += `@@ -${hunkStart + 1},${oldCount} +${hunkStart + 1},${newCount} @@\n`;
+      diff += hunkLines.join('\n') + '\n';
+      hunkStart = -1;
+      hunkLines = [];
+      oldCount = 0;
+      newCount = 0;
+    }
+  };
   
   for (let i = 0; i < maxLen; i++) {
     const oldLine = originalLines[i];
@@ -56,20 +68,21 @@ function generateUnifiedDiff(
     
     if (oldLine !== newLine) {
       if (hunkStart === -1) hunkStart = i;
-      if (oldLine !== undefined) hunkLines.push(`-${oldLine}`);
-      if (newLine !== undefined) hunkLines.push(`+${newLine}`);
+      
+      if (oldLine !== undefined) {
+        hunkLines.push(`-${oldLine}`);
+        oldCount++;
+      }
+      if (newLine !== undefined) {
+        hunkLines.push(`+${newLine}`);
+        newCount++;
+      }
     } else if (hunkStart !== -1) {
-      diff += `@@ -${hunkStart + 1},${i - hunkStart} +${hunkStart + 1},${i - hunkStart} @@\n`;
-      diff += hunkLines.join('\n') + '\n';
-      hunkStart = -1;
-      hunkLines = [];
+      flushHunk();
     }
   }
   
-  if (hunkStart !== -1) {
-    diff += `@@ -${hunkStart + 1},${maxLen - hunkStart} +${hunkStart + 1},${maxLen - hunkStart} @@\n`;
-    diff += hunkLines.join('\n') + '\n';
-  }
+  flushHunk();
   
   return diff;
 }
@@ -96,13 +109,11 @@ export async function showDiffInVsCode(
 
   try {
     await fs.writeFile(originalPath, originalContent, 'utf8');
-    await fs.writeFile(newContent, newContent, 'utf8');
+    await fs.writeFile(newPath, newContent, 'utf8');
     
-    // 生成patch文件
     const patch = generateUnifiedDiff(originalContent, newContent, fileNameHint || 'file');
     await fs.writeFile(patchPath, patch, 'utf8');
     
-    // 使用配置的查看器
     await runProcess(viewer, ['--diff', '--wait', originalPath, newPath]);
     
     const editedContent = await fs.readFile(newPath, 'utf8');
