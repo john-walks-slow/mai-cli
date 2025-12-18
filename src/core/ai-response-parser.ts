@@ -251,61 +251,38 @@ async function parseDelimitedOperations(
 }
 
 /**
- * 尝试解析 JSON 格式。
- * 职责：简单 JSON5 解析和验证，回退时返回空。
- * @param response - AI响应字符串。
- * @returns 操作数组或空数组。
- * @throws {Error} 如果 JSON 解析错误，但并非由于格式不匹配。
+ * 解析 JSON 格式的操作。
+ * @param response - JSON 字符串。
+ * @returns 操作数组。
+ * @throws {Error} 如果 JSON 解析或验证失败。
  */
-async function tryParseAsJson(response: string): Promise<AiOperation[]> {
+export async function parseJsonOperations(response: string): Promise<AiOperation[]> {
   const trimmed = response.trim();
-  // 检查是否看起来像 JSON 数组或对象
-  if (
-    !trimmed.startsWith('[') &&
-    !(trimmed.startsWith('{') && trimmed.endsWith('}'))
-  ) {
+  if (!trimmed.startsWith('[') && !(trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+    throw new Error('不是有效的 JSON 格式');
+  }
+
+  const jsonContent = JSON5.parse(trimmed);
+  const operations = Array.isArray(jsonContent) ? jsonContent : [jsonContent];
+
+  if (!operations.length) {
     return [];
   }
 
-  try {
-    const jsonContent = JSON5.parse(trimmed); // 使用 JSON5 进行更灵活的解析
-    const operations = Array.isArray(jsonContent) ? jsonContent : [jsonContent];
-
-    if (!operations.length) {
-      return [];
-    }
-
-    // 验证所有操作
-    const validation = OperationValidator.validateOperations(operations);
-    if (!validation.isValid) {
-      throw new Error(
-        `JSON 验证失败: ${
-          validation.errors?.slice(0, 3).join('; ') || '未知错误'
-        }`
-      );
-    }
-
-    console.log(CliStyle.info(`解析到 ${operations.length} 个JSON操作`));
-    return operations as AiOperation[];
-  } catch (error) {
-    // 捕获 JSON5 解析错误
-    if (error instanceof SyntaxError) {
-      // 这是一个格式不匹配的错误，不向上抛出
-      return [];
-    }
-    // 其他错误如验证失败则向上抛出
+  const validation = OperationValidator.validateOperations(operations);
+  if (!validation.isValid) {
     throw new Error(
-      `JSON 解析/验证错误: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      `JSON 验证失败: ${validation.errors?.slice(0, 3).join('; ') || '未知错误'}`
     );
   }
+
+  console.log(CliStyle.info(`解析到 ${operations.length} 个 JSON 操作`));
+  return operations as AiOperation[];
 }
 
 /**
- * 主解析函数。
- * 职责：优先 JSON，其次定界格式，确保稳定解析。
- * @param response - AI响应字符串。
+ * 解析定界符格式的 AI 响应。
+ * @param response - AI 响应字符串。
  * @returns 验证过的操作数组。
  */
 export async function parseAiResponse(
@@ -315,44 +292,47 @@ export async function parseAiResponse(
 ): Promise<AiOperation[]> {
   const trimmed = response.trim();
   if (!trimmed) {
-    console.log(CliStyle.warning('AI响应为空'));
+    console.log(CliStyle.warning('AI 响应为空'));
     return [];
   }
 
-  // 尝试 JSON 解析
-  try {
-    const jsonOps = await tryParseAsJson(trimmed);
-    if (jsonOps.length > 0) {
-      return jsonOps;
+  const operations = await parseDelimitedOperations(trimmed, shouldValidate, looseMode);
+
+  if (operations.length === 0) {
+    const hasDelimiters = trimmed.includes(startDelimiter());
+    if (hasDelimiters) {
+      console.log(CliStyle.warning('检测到定界符但格式无效'));
     }
-  } catch (error) {
-    // tryParseAsJson 可能会抛出验证失败的错误，这里捕获并打印
-    console.warn(
-      CliStyle.warning(
-        `尝试 JSON 解析失败: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      )
-    );
   }
 
-  // 回退到定界格式
-  const delimitedOps = await parseDelimitedOperations(
-    trimmed,
-    shouldValidate,
-    looseMode
-  );
-  if (delimitedOps.length > 0) {
-    return delimitedOps;
+  return operations;
+}
+
+/**
+ * 自动识别格式并解析操作（用于 exec-plan 等场景）。
+ * @param response - 操作字符串（JSON 或定界符格式）。
+ * @returns 验证过的操作数组。
+ */
+export async function parseOperations(
+  response: string,
+  shouldValidate = true,
+  looseMode: boolean = false
+): Promise<AiOperation[]> {
+  const trimmed = response.trim();
+  if (!trimmed) {
+    console.log(CliStyle.warning('响应为空'));
+    return [];
   }
 
-  // 都没有成功
-  const hasDelimiters = trimmed.includes(startDelimiter());
-  if (hasDelimiters) {
-    console.log(CliStyle.warning('检测到定界符但格式无效'));
-  } else {
-    // console.log(CliStyle.warning('未找到有效操作格式'));
+  // 检测 JSON 格式
+  if (trimmed.startsWith('[') || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+    try {
+      return await parseJsonOperations(trimmed);
+    } catch (error) {
+      console.log(CliStyle.warning('JSON 解析失败，尝试定界符格式'));
+    }
   }
 
-  return [];
+  // 使用定界符格式
+  return await parseAiResponse(trimmed, shouldValidate, looseMode);
 }

@@ -4,7 +4,8 @@ import { Argument, Command, Option } from 'commander';
 import * as readline from 'readline';
 import * as fs from 'fs/promises';
 
-import { processRequest, processAiResponse } from './core/main-processor';
+import { processRequest } from './core/main-processor';
+import { executePlanFromSource } from './commands/exec-plan';
 import { CliStyle } from './utils/cli-style';
 import * as packageJson from '../package.json';
 import { listAvailableModels, selectModelInteractive } from './commands/model';
@@ -208,15 +209,11 @@ program
     }
 
     try {
-      // 重用现有的AI响应处理逻辑，它处理解析、验证和审查/执行。
-      // 传递 planSource 作为 userPrompt，用于历史记录描述。
-      // 添加 autoApply 参数
       const autoApply = allOptions.autoApply || false;
-      await processAiResponse(
+      await executePlanFromSource(
         planContent,
         `手动执行计划来源: ${planSource}`,
-        autoApply,
-        []
+        autoApply
       );
     } catch (error) {
       console.error(
