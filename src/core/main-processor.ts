@@ -1,35 +1,22 @@
-import * as fs from 'fs/promises';
-import * as os from 'os';
-import * as path from 'path';
-import ora from 'ora';
-
+import { ContextBuilder } from './context-builder';
+import { ResponseHandler } from './response-handler';
+import { RequestOrchestrator } from './orchestrator';
+import { CliStyle } from '../utils/cli-style';
+import { parseAiResponse } from './ai-response-parser';
+import { reviewAndExecutePlan } from './plan-reviewer';
+import {
+  HistoryEntry,
+  loadHistory,
+  saveAiHistory,
+  saveHistory
+} from '../commands/history';
 import {
   AiOperation,
   FileOperation,
   ResponseOperation
 } from './operation-schema';
-import { CliStyle } from '../utils/cli-style';
-import { getSystemPrompt } from '../utils/config-manager';
-import { constructSystemPrompt, createUserPrompt } from '../constants/prompts';
-import { parseAiResponse } from './ai-response-parser';
-import { reviewAndExecutePlan } from './plan-reviewer';
-import { FileContextItem, getFileContext } from './file-context';
-import { getAiResponse, streamAiResponse } from '../utils/network';
-import {
-  formatHistoryContext,
-  formatMultipleHistoryContexts,
-  getRecentHistory,
-  getHistoryById,
-  loadHistory,
-  saveHistory,
-  saveAiHistory,
-  parseIdOrName,
-  HistoryEntry,
-  updateHistoryApplied
-} from '../commands/history';
-import { getHistoryDepth } from '../utils/config-manager';
-import { prepareAutoContext } from './context-agent';
-import { ModelMessage } from 'ai';
+import * as fs from 'fs/promises';
+import path from 'path';
 
 /**
  * 处理用户请求的主调度函数。
@@ -51,196 +38,22 @@ export async function processRequest(
   model?: string,
   temperature?: number
 ): Promise<void> {
-  if (!userPrompt?.trim()) {
-    console.log(CliStyle.warning('用户请求为空，退出。'));
-    return;
-  }
+  const orchestrator = new RequestOrchestrator(
+    new ContextBuilder(),
+    new ResponseHandler()
+  );
 
-  let historyMessages: ModelMessage[] = [];
-
-  let fileContext = '';
-  let actualUserPromptContent = '';
-
-  // 构造系统提示
-  let actualSystemPrompt: string;
-
-  if (systemPrompt !== undefined) {
-    // 明确指定（空或自定义）
-    actualSystemPrompt = systemPrompt;
-    if (systemPrompt) {
-      console.log(
-        CliStyle.info(
-          `使用指定的系统提示词（长度: ${systemPrompt.length} 字符）。`
-        )
-      );
-    } else {
-      console.log(CliStyle.info('使用空系统提示词。'));
-    }
-  } else {
-    // 检查配置文件中的系统提示
-    const configSystemPrompt = await getSystemPrompt();
-    if (configSystemPrompt) {
-      console.log(CliStyle.info('使用配置文件中的自定义系统提示词。'));
-      actualSystemPrompt = configSystemPrompt;
-    } else {
-      // 使用默认系统提示
-      actualSystemPrompt = constructSystemPrompt();
-    }
-  }
-  if (autoApply) {
-    console.log(CliStyle.info('启用自动应用模式，无需用户确认。'));
-  }
-  // 步骤1：准备用户指令、文件上下文和历史上下文
-  try {
-    let entries: HistoryEntry[] = [];
-    let additionalFiles: string[] = [];
-
-    if (autoContext) {
-      console.log(CliStyle.info('启用自动上下文准备...'));
-      const autoItems: FileContextItem[] = await prepareAutoContext(userPrompt);
-      additionalFiles = autoItems.map((item) => item.path);
-      console.log(
-        CliStyle.info(`自动上下文添加了 ${additionalFiles.length} 个文件`)
-      );
-    }
-    if (historyIds && historyIds.length > 0) {
-      console.log(
-        CliStyle.info(`正在加载多个历史上下文: ${historyIds.join(', ')}`)
-      );
-      const history = await loadHistory();
-      for (const idOrName of historyIds) {
-        const result = parseIdOrName(idOrName, history);
-        entries.push(result.entry!);
-        // 添加历史请求中的文件到 files
-        if (result.entry!.files && result.entry!.files.length > 0) {
-          files.push(...result.entry!.files);
-        }
-      }
-    } else {
-      let effectiveDepth: number;
-      if (historyDepth !== undefined) {
-        effectiveDepth = historyDepth;
-      } else {
-        effectiveDepth = await getHistoryDepth();
-      }
-      if (effectiveDepth > 0) {
-        console.log(
-          CliStyle.info(`正在加载最近 ${effectiveDepth} 条历史上下文`)
-        );
-        entries = await getRecentHistory(effectiveDepth);
-        entries.forEach((entry) => {
-          if (entry.files && entry.files.length > 0) {
-            files.push(...entry.files);
-          }
-        });
-      }
-    }
-
-    // 合并 auto 上下文文件并去重
-    files = [...new Set([...files, ...additionalFiles])];
-
-    if (files.length > 0) {
-      console.log(CliStyle.info('正在读取文件并为AI准备上下文...'));
-      fileContext = await getFileContext(files);
-    }
-
-    actualUserPromptContent = createUserPrompt(userPrompt);
-
-    // 构建历史消息：从最早到最近
-    if (entries.length > 0) {
-      const reversedEntries = entries.slice().reverse(); // 从旧到新
-      for (const entry of reversedEntries) {
-        historyMessages.push({ role: 'user', content: entry.prompt });
-        historyMessages.push({
-          role: 'assistant',
-          content: entry.aiResponse || ''
-        });
-        if (entry.applied !== undefined) {
-          const choice = entry.applied ? '应用' : '放弃';
-          historyMessages.push({
-            role: 'user',
-            content: `用户选择了${choice}该计划。`
-          });
-        }
-      }
-      console.log(
-        CliStyle.info(`已将 ${entries.length} 条历史添加到对话历史中`)
-      );
-    }
-  } catch (error) {
-    throw new Error(`上下文准备失败: ${(error as Error).message}`);
-  }
-
-  // 获取temperature参数
-  let actualTemperature: number;
-  if (temperature !== undefined) {
-    actualTemperature = temperature;
-  } else {
-    const { getTemperature } = await import('../utils/config-manager');
-    actualTemperature = await getTemperature();
-  }
-
-  const aiSpinner = ora({
-    text: 'AI思考中...',
-    spinner: {
-      interval: 80,
-      frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
-    }
-  }).start();
-
-  let aiResponse: string;
-  const startTime = Date.now();
-  let receivedChars = 0;
-
-  const updateSpinner = () => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    if (receivedChars > 0) {
-      aiSpinner.text = `AI流式响应中... (${elapsed}s, ${receivedChars} Received)`;
-    } else {
-      aiSpinner.text = `AI思考中... (${elapsed}s)`;
-    }
-  };
-
-  // 更新计时
-  const timer = setInterval(updateSpinner, 1000);
-
-  try {
-    const messages: ModelMessage[] = [
-      ...(actualSystemPrompt
-        ? [{ role: 'system', content: actualSystemPrompt }]
-        : []),
-      ...historyMessages,
-      { role: 'user', content: actualUserPromptContent },
-      ...(fileContext ? [{ role: 'user', content: fileContext }] : [])
-    ] as ModelMessage[];
-
-    aiResponse = await streamAiResponse(messages, {
-      model,
-      temperature: actualTemperature,
-      onChunk: (chunk: string, response: string) => {
-        // 更新接收到的字符数
-        receivedChars = response.length;
-        updateSpinner();
-      }
-    });
-
-    const messagesJson = JSON.stringify(messages, null, 2);
-    await saveAiResponseToTempFile(aiResponse, messagesJson);
-
-    clearInterval(timer);
-    const totalElapsed = Math.floor((Date.now() - startTime) / 1000);
-    aiSpinner.succeed(`AI响应成功 (${totalElapsed}s, ${receivedChars} Total)`);
-  } catch (error) {
-    clearInterval(timer);
-    aiSpinner.fail('AI响应获取失败');
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    console.error(
-      CliStyle.error(`AI请求失败: ${(error as Error).message} (${elapsed}s)`)
-    );
-    throw error;
-  }
-
-  await processAiResponse(aiResponse, userPrompt, autoApply, files);
+  await orchestrator.process(
+    userPrompt,
+    files,
+    historyIds,
+    historyDepth,
+    systemPrompt,
+    autoContext,
+    autoApply,
+    model,
+    temperature
+  );
 }
 
 /**
@@ -404,63 +217,5 @@ export async function processAiResponse(
     console.log(CliStyle.info('--- 原始响应结束 ---\n'));
     // Rethrow the error to indicate failure in the overall process
     throw error;
-  }
-}
-
-/**
- * 更新历史记录的描述。
- * @param id - 历史ID。
- * @param newDescription - 新描述。
- */
-async function updateHistoryDescription(
-  id: string,
-  newDescription: string
-): Promise<void> {
-  const history = await loadHistory();
-  const entry = history.find((h: HistoryEntry) => h.id === id);
-  if (entry) {
-    entry.description = newDescription;
-    await saveHistory(history);
-  }
-}
-
-/**
- * 将AI响应保存到临时文件，便于调试。
- * @param aiResponse - AI响应内容。
- * @param messagesJson - 完整的 messages JSON 字符串。
- */
-async function saveAiResponseToTempFile(
-  aiResponse: string,
-  messagesJson: string
-): Promise<void> {
-  try {
-    const tempDir = os.tmpdir();
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const safePrompt = 'messages'; // 使用固定名称，因为现在是 messages JSON
-    const tempFileName = `mai-ai-response-${timestamp}-${safePrompt}.md`;
-    const tempFilePath = path.join(tempDir, tempFileName);
-
-    const saveContent = [
-      '--- AI Response Debug Info ---',
-      `Timestamp: ${new Date().toISOString()}`,
-      'Messages JSON:',
-      '',
-      messagesJson,
-      '',
-      `Response Length: ${aiResponse.length}`,
-      '--- Raw AI Response ---',
-      '',
-      aiResponse,
-      '',
-      '--- End of Response ---'
-    ].join('\n');
-
-    await fs.writeFile(tempFilePath, saveContent, 'utf-8');
-    console.log(CliStyle.muted(`AI响应已保存: ${tempFilePath}`));
-  } catch (error) {
-    // 非关键错误，不抛出异常
-    console.log(
-      CliStyle.warning(`无法保存AI响应到临时文件: ${(error as Error).message}`)
-    );
   }
 }
