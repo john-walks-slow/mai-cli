@@ -37,5 +37,11 @@
   // 模型温度
   temperature: 0.8,
   // 自动附带的历史上下文深度
-  historyDepth: 0
+  historyDepth: 0,
+  // 自动上下文配置
+  autoContext: {
+    enabled: true,
+    maxRounds: 20,
+    maxOperations: 40
+  }
 }

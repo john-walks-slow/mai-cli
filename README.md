@@ -167,17 +167,32 @@ mai <prompt> [files...] [options]
 - `-r, --ref-history <ids>`: 引用历史记录 ID、名称或索引列表（逗号分隔，如 `~1,id2`）作为上下文。`~1` 代表最近的一次历史
 - `-d, --history-depth <number>`: 历史深度，自动加载最近 N 条历史（默认从配置或 0）
 - `-c, --chat`: 忽略系统提示词
-- `-m, --model <model>`: 指定使用的AI模型，覆盖默认配置
-- `-t, --temperature <number>`: 指定AI模型的temperature参数，控制输出的随机性 (0-2)
+- `-a, --auto-context`: （实验性）启用自动上下文准备，允许 MAI 主动收集需要的文件上下文
+- `-m, --model <model>`: 指定使用的 AI 模型，覆盖默认配置
+- `-t, --temperature <number>`: 指定 AI 模型的 temperature 参数，控制输出的随机性 (0-2)
+
+**自动上下文准备说明：**
+
+自动上下文模式下：
+
+1. MAI 可以主动提出信息收集操作，包括：
+
+   - `list_directory`: 列出目录结构
+   - `search_content`: 在文件中搜索特定内容
+   - `read_file`: 读取文件内容
+
+2. 系统会执行 MAI 提出的信息收集操作，并将结果反馈给 MAI，让 MAI 基于新信息继续工作
+
+3. 当 MAI 提出文件操作或响应操作时，信息收集阶段结束，进入正常的计划审查流程
 
 ### 模型选择
 
 #### `mai model`
 
-管理和选择AI模型。
+管理和选择 AI 模型。
 
-- `list`: 列出所有可用的AI模型，并显示当前选择
-- `select`: 交互式选择AI模型
+- `list`: 列出所有可用的 AI 模型，并显示当前选择
+- `select`: 交互式选择 AI 模型
 
 ### 历史记录
 
@@ -195,7 +210,7 @@ mai <prompt> [files...] [options]
 
 #### `mai template`
 
-管理和应用存储在 ~/.mai/templates/ 目录中的AI提示词模板。
+管理和应用存储在 ~/.mai/templates/ 目录中的 AI 提示词模板。
 
 - `list`: 列出所有可用的提示词模板
 - `show <name>`: 显示指定提示词模板的详细内容
