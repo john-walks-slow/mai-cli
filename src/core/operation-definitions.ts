@@ -11,6 +11,8 @@ import {
   FileOperation
 } from './operation-schema';
 
+const ESCAPE_PREFIX = '\\';
+
 export function startDelimiter(identifier: string = 'OPERATION') {
   return `--- ${identifier} start ---`;
 }
@@ -19,6 +21,18 @@ export function endDelimiter(identifier: string = 'OPERATION') {
 }
 export const startDelimiterRegex = /^--- ([A-Za-z0-9_]+) start ---$/;
 export const endDelimiterRegex = /^--- ([A-Za-z0-9_]+) end ---$/;
+
+export function escapeDelimiters(content: string): string {
+  return content
+    .replace(/^--- /gm, `${ESCAPE_PREFIX}--- `)
+    .replace(/ ---$/gm, ` ---${ESCAPE_PREFIX}`);
+}
+
+export function unescapeDelimiters(content: string): string {
+  return content
+    .replace(new RegExp(`^${ESCAPE_PREFIX}--- `, 'gm'), '--- ')
+    .replace(new RegExp(` ---${ESCAPE_PREFIX}$`, 'gm'), ' ---');
+}
 
 type FieldConfig = {
   example: string;

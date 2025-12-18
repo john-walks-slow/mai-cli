@@ -16,6 +16,7 @@ export interface MaiConfig {
   temperature?: number;
   historyScope?: 'global' | 'project';
   diffViewer?: string;
+  followGitIgnore?: boolean;
   autoContext?: {
     maxRounds?: number;
     maxFiles?: number;
@@ -492,6 +493,21 @@ export async function setDiffViewer(viewer: string): Promise<void> {
   await saveConfig(config);
 }
 
+export async function getFollowGitIgnore(): Promise<boolean> {
+  try {
+    const config = await loadConfig();
+    return config.followGitIgnore ?? true;
+  } catch {
+    return true;
+  }
+}
+
+export async function setFollowGitIgnore(follow: boolean): Promise<void> {
+  const config = await loadConfig();
+  config.followGitIgnore = follow;
+  await saveConfig(config);
+}
+
 export async function getConfigurableOptions(): Promise<ConfigOption[]> {
   const availableModels = await getAvailableModels();
   const options: ConfigOption[] = [
@@ -568,6 +584,14 @@ export async function getConfigurableOptions(): Promise<ConfigOption[]> {
       max: 20,
       getter: async () => (await getAutoContextConfig()).maxFiles,
       setter: (files: number) => setAutoContextMaxFiles(files)
+    },
+    {
+      key: 'followGitIgnore',
+      name: '跟随 .gitignore',
+      description: '是否在 .maiignore 基础上扩展 .gitignore 规则',
+      type: 'boolean',
+      getter: getFollowGitIgnore,
+      setter: setFollowGitIgnore
     }
   ];
 

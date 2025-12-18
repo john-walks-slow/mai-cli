@@ -2,7 +2,8 @@ import {
   endDelimiter,
   endDelimiterRegex,
   startDelimiter,
-  startDelimiterRegex
+  startDelimiterRegex,
+  unescapeDelimiters
 } from './operation-definitions';
 import { CliStyle } from '../utils/cli-style';
 import * as JSON5 from 'json5'; // Use JSON5 for parsing flexibly
@@ -68,11 +69,9 @@ async function parseSingleOperationBlock(
         (looseMode && trimmedLine === '--- end ---') ||
         (looseMode && trimmedLine === '--- end content ---')
       ) {
-        // 将收集到的行连接成字符串并赋值给对应的键的小写形式
-        // 例如, LOG_END -> operation.log
-        operation[currentContentKey.toLowerCase()] = contentLines.join('\n');
+        const rawContent = contentLines.join('\n');
+        operation[currentContentKey.toLowerCase()] = unescapeDelimiters(rawContent);
 
-        // 重置状态，准备解析下一个参数或内容块
         contentLines = [];
         currentContentKey = null;
         continue;
@@ -120,11 +119,10 @@ async function parseSingleOperationBlock(
     throw new Error(`操作块缺少'type'属性: ${JSON.stringify(operation)}`);
   }
 
-  // 确保所有内容块都已正确关闭
   if (currentContentKey) {
     if (looseMode) {
-      // 自动关闭最后一个内容块
-      operation[currentContentKey.toLowerCase()] = contentLines.join('\n');
+      const rawContent = contentLines.join('\n');
+      operation[currentContentKey.toLowerCase()] = unescapeDelimiters(rawContent);
       console.log(
         CliStyle.warning(
           `自动关闭未闭合的 ${currentContentKey.toLowerCase()} 块`

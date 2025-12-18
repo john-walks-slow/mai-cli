@@ -9,10 +9,10 @@ export async function toAbsolutePath(relativePath: string): Promise<string> {
   if (path.isAbsolute(relativePath)) {
     return path.normalize(relativePath);
   }
-  
+
   // 尝试相对于当前工作目录解析
   const cwdResolved = path.resolve(process.cwd(), relativePath);
-  
+
   // 检查文件是否存在于cwd相对路径
   try {
     await fs.access(cwdResolved);
@@ -29,22 +29,46 @@ export async function toAbsolutePath(relativePath: string): Promise<string> {
   }
 }
 
-export async function isFileIgnored(relativePath: string): Promise<boolean> {
+async function parseIgnoreFile(filePath: string): Promise<string[]> {
   try {
-    const root = await findGitRoot();
-    const gitignorePath = path.join(root, '.gitignore');
-    const content = await fs.readFile(gitignorePath, 'utf8');
-    const lines = content
+    const content = await fs.readFile(filePath, 'utf8');
+    return content
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line && !line.startsWith('#'));
+  } catch {
+    return [];
+  }
+}
+
+export async function isFileIgnored(relativePath: string): Promise<boolean> {
+  try {
+    const root = await findGitRoot();
+    const { getFollowGitIgnore } = await import('./config-manager');
+    const followGitIgnore = await getFollowGitIgnore();
+
+    let allPatterns: string[] = [];
+
+    // 读取 .maiignore
+    const maiignorePath = path.join(root, '.maiignore');
+    const maiignorePatterns = await parseIgnoreFile(maiignorePath);
+    allPatterns.push(...maiignorePatterns);
+
+    // 如果启用，读取 .gitignore
+    if (followGitIgnore) {
+      const gitignorePath = path.join(root, '.gitignore');
+      const gitignorePatterns = await parseIgnoreFile(gitignorePath);
+      allPatterns.push(...gitignorePatterns);
+    }
+
+    if (allPatterns.length === 0) return false;
 
     const positivePatterns: string[] = [];
     const negativePatterns: string[] = [];
 
-    for (const line of lines) {
+    for (const line of allPatterns) {
       if (line.startsWith('!')) {
-        negativePatterns.push(line.slice(1)); // 移除 !
+        negativePatterns.push(line.slice(1));
       } else {
         positivePatterns.push(line);
       }
@@ -66,7 +90,6 @@ export async function isFileIgnored(relativePath: string): Promise<boolean> {
 
     return isPositiveMatch && !isNegativeMatch;
   } catch (error) {
-    // 如果 .gitignore 不存在或读取失败，不忽略任何文件
     return false;
   }
 }
@@ -129,8 +152,8 @@ export function replaceInFile(
   // 如果有 find，则替换；否则直接用 content
   if (find) {
     const lineEnding = originalContent.includes('\r\n') ? '\r\n' : '\n';
-    const replacementString = content.replace(/(?<!\r)\n/g, lineEnding);
-    const adaptedFind = find.replace(/(?<!\r)\n/g, lineEnding);
+    const replacementString = content.replace(/(?<!\r)\n/g, () => lineEnding);
+    const adaptedFind = find.replace(/(?<!\r)\n/g, () => lineEnding);
     const matchCount = originalContent.split(adaptedFind).length - 1;
 
     if (matchCount === 0) {
@@ -143,7 +166,7 @@ export function replaceInFile(
       );
     }
 
-    newContent = originalContent.replace(adaptedFind, replacementString);
+    newContent = originalContent.replace(adaptedFind, () => replacementString);
   }
 
   return newContent;
