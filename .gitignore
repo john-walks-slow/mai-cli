@@ -9,3 +9,4 @@ dist
 .aider*
 pnpm-lock.yaml
 *.bak
+coverage
