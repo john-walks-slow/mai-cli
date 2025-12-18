@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { CliStyle } from './cli-style';
+import { getDiffViewer } from './config-manager';
 
 /**
  * 在用户的默认文本编辑器中打开内容（硬编码为VS Code）。
@@ -32,73 +33,95 @@ export async function openInEditor(content: string): Promise<string> {
 }
 
 /**
- * 在VS Code中显示两个内容之间的差异，并允许用户编辑新内容（支持部分编辑的完整上下文审查）。
- * 进程会等待VS Code差异窗口关闭。如果用户保存了对新内容的更改，则返回修改后的内容。
- * @param originalContent - 原始文件内容。
- * @param newContent - AI提议的新内容（对于部分编辑，应为应用更改后的完整内容）。
- * @param fileNameHint - 可选，用于临时文件名的提示，例如 "my-file.ts"。
- * @returns 用户编辑并保存后的新内容，如果没有保存更改则返回 `null`。
+ * 生成统一diff patch格式
+ */
+function generateUnifiedDiff(
+  originalContent: string,
+  newContent: string,
+  filePath: string
+): string {
+  const originalLines = originalContent.split('\n');
+  const newLines = newContent.split('\n');
+  
+  let diff = `--- ${filePath}\n+++ ${filePath}\n`;
+  
+  // 简化的diff生成（实际应用可使用diff库）
+  const maxLen = Math.max(originalLines.length, newLines.length);
+  let hunkStart = -1;
+  let hunkLines: string[] = [];
+  
+  for (let i = 0; i < maxLen; i++) {
+    const oldLine = originalLines[i];
+    const newLine = newLines[i];
+    
+    if (oldLine !== newLine) {
+      if (hunkStart === -1) hunkStart = i;
+      if (oldLine !== undefined) hunkLines.push(`-${oldLine}`);
+      if (newLine !== undefined) hunkLines.push(`+${newLine}`);
+    } else if (hunkStart !== -1) {
+      diff += `@@ -${hunkStart + 1},${i - hunkStart} +${hunkStart + 1},${i - hunkStart} @@\n`;
+      diff += hunkLines.join('\n') + '\n';
+      hunkStart = -1;
+      hunkLines = [];
+    }
+  }
+  
+  if (hunkStart !== -1) {
+    diff += `@@ -${hunkStart + 1},${maxLen - hunkStart} +${hunkStart + 1},${maxLen - hunkStart} @@\n`;
+    diff += hunkLines.join('\n') + '\n';
+  }
+  
+  return diff;
+}
+
+/**
+ * 显示diff并允许编辑
  */
 export async function showDiffInVsCode(
   originalContent: string,
   newContent: string,
   fileNameHint?: string
 ): Promise<string | null> {
+  const viewer = await getDiffViewer();
   const tempDir = path.join(process.cwd(), '.ai-temp');
-  await fs.mkdir(tempDir, { recursive: true }).catch(() => {
-    /* 忽略已存在错误 */
-  });
+  await fs.mkdir(tempDir, { recursive: true }).catch(() => {});
+  
   const timestamp = Date.now();
-  const baseName = fileNameHint
-    ? path.basename(fileNameHint, path.extname(fileNameHint))
-    : 'mai';
+  const baseName = fileNameHint ? path.basename(fileNameHint, path.extname(fileNameHint)) : 'mai';
   const extName = fileNameHint ? path.extname(fileNameHint) : '.tmp';
-
-  const originalPath = path.join(
-    tempDir,
-    `${baseName}-original-${timestamp}${extName}`
-  );
+  
+  const originalPath = path.join(tempDir, `${baseName}-original-${timestamp}${extName}`);
   const newPath = path.join(tempDir, `${baseName}-new-${timestamp}${extName}`);
-  const editor = 'code'; // 硬编码为VS Code
-  const projectRoot = process.cwd();
+  const patchPath = path.join(tempDir, `${baseName}-${timestamp}.patch`);
 
   try {
     await fs.writeFile(originalPath, originalContent, 'utf8');
-    await fs.writeFile(newPath, newContent, 'utf8'); // 写入AI提议的内容到新文件
-    await runProcess(editor, [
-      //'--folder-uri', projectRoot,
-      '--diff',
-      '--wait',
-      originalPath,
-      newPath
-    ]);
-
-    // 读取用户可能已修改的newPath内容
+    await fs.writeFile(newContent, newContent, 'utf8');
+    
+    // 生成patch文件
+    const patch = generateUnifiedDiff(originalContent, newContent, fileNameHint || 'file');
+    await fs.writeFile(patchPath, patch, 'utf8');
+    
+    // 使用配置的查看器
+    await runProcess(viewer, ['--diff', '--wait', originalPath, newPath]);
+    
     const editedContent = await fs.readFile(newPath, 'utf8');
-
-    // 如果编辑后的内容与原始新内容不同，则返回编辑后的内容
+    
     if (editedContent !== newContent) {
       console.log(CliStyle.success('检测到并保存了差异审查中的修改。'));
       return editedContent;
-    } else {
-      console.log(CliStyle.muted('在差异审查中未检测到修改。'));
-      return null;
     }
+    
+    console.log(CliStyle.muted('在差异审查中未检测到修改。'));
+    return null;
   } catch (error) {
-    console.error(
-      CliStyle.error('打开VS Code差异时出错。`code`命令是否在您的PATH中？')
-    );
-    console.error(CliStyle.error(String(error)));
-    return null; // 发生错误时返回null
+    console.error(CliStyle.error(`打开diff查看器时出错: ${(error as Error).message}`));
+    return null;
   } finally {
-    // 清理临时文件
     await Promise.all([
-      fs.unlink(originalPath).catch(() => {
-        /* 清理时忽略错误 */
-      }),
-      fs.unlink(newPath).catch(() => {
-        /* 清理时忽略错误 */
-      })
+      fs.unlink(originalPath).catch(() => {}),
+      fs.unlink(newPath).catch(() => {}),
+      fs.unlink(patchPath).catch(() => {})
     ]);
   }
 }

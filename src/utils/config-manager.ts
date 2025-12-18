@@ -11,15 +11,16 @@ import { MAI_CONFIG_DIR_NAME, CONFIG_FILE_NAME } from '../constants/mai-data';
  */
 export interface MaiConfig {
   model?: string;
-  systemPrompt?: string; // 支持从配置文件配置系统提示词
-  historyDepth?: number; // 默认历史深度，用于自动注入最近N条历史
-  temperature?: number; // AI模型的temperature参数，控制输出的随机性
-  historyScope?: 'global' | 'project'; // 历史记录存储范围：全局或项目级别
+  systemPrompt?: string;
+  historyDepth?: number;
+  temperature?: number;
+  historyScope?: 'global' | 'project';
+  diffViewer?: string;
   autoContext?: {
     maxRounds?: number;
     maxFiles?: number;
   };
-  providers?: Partial<ProvidersConfig>; // 支持自定义providers
+  providers?: Partial<ProvidersConfig>;
 }
 
 export interface ProviderConfig {
@@ -476,6 +477,21 @@ export async function setHistoryScope(scope: 'global' | 'project'): Promise<void
   await saveConfig(config);
 }
 
+export async function getDiffViewer(): Promise<string> {
+  try {
+    const config = await loadConfig();
+    return config.diffViewer || 'code';
+  } catch {
+    return 'code';
+  }
+}
+
+export async function setDiffViewer(viewer: string): Promise<void> {
+  const config = await loadConfig();
+  config.diffViewer = viewer;
+  await saveConfig(config);
+}
+
 export async function getConfigurableOptions(): Promise<ConfigOption[]> {
   const availableModels = await getAvailableModels();
   const options: ConfigOption[] = [
@@ -524,6 +540,14 @@ export async function getConfigurableOptions(): Promise<ConfigOption[]> {
       max: 2,
       getter: getTemperature,
       setter: setTemperature
+    },
+    {
+      key: 'diffViewer',
+      name: 'Diff查看器',
+      description: 'Diff查看器命令 (如 code, vim, meld)',
+      type: 'text',
+      getter: getDiffViewer,
+      setter: setDiffViewer
     },
     {
       key: 'autoContext.maxRounds',

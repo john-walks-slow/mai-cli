@@ -354,70 +354,49 @@ export async function reviewAndExecutePlan(
     switch (choice) {
       case 'apply':
         if (currentOperations.length === 0) {
-          console.log(CliStyle.warning('没有可应用的文件操作。'));
-          inReviewLoop = false;
-        } else {
-          try {
-            // 应用前最终验证
-            const finalValidation =
-              OperationValidator.validateOperations(currentOperations);
-            if (!finalValidation.isValid) {
-              console.log(CliStyle.error('计划包含无效操作，无法应用。'));
-              const { forceApply } = await inquirer.prompt([
-                {
-                  type: 'confirm',
-                  name: 'forceApply',
-                  message: '是否强制应用可能无效的计划？',
-                  default: false
-                }
-              ]);
-
-              if (!forceApply) {
-                break;
-              }
-            }
-
-            // 验证操作可达性
-            console.log(CliStyle.info('正在验证操作可达性...'));
-            const reachabilityValidation =
-              await OperationValidator.validateOperationsReachability(
-                currentOperations
-              );
-            if (!reachabilityValidation.isValid) {
-              console.log(CliStyle.error('计划包含不可达操作，无法应用。'));
-              reachabilityValidation.errors?.forEach((error) => {
-                console.log(CliStyle.error(`  ${error}`));
-              });
-              const { forceApply } = await inquirer.prompt([
-                {
-                  type: 'confirm',
-                  name: 'forceApply',
-                  message: '是否强制应用可能不可达的计划？',
-                  default: false
-                }
-              ]);
-
-              if (!forceApply) {
-                break;
-              }
-            } else {
-              console.log(CliStyle.success('✓ 所有操作可达'));
-            }
-
-            await executePlan(
-              currentOperations,
-              userPrompt || 'AI plan execution'
-            );
-            applied = true;
-            inReviewLoop = false;
-          } catch (error) {
-            console.error(
-              CliStyle.error(`\n应用计划失败: ${(error as Error).message}`)
-            );
-            inReviewLoop = false;
-            throw error; // 重新抛出以便上层处理
+        console.log(CliStyle.warning('没有可应用的文件操作。'));
+        inReviewLoop = false;
+      } else {
+        try {
+          const finalValidation = OperationValidator.validateOperations(currentOperations);
+          if (!finalValidation.isValid) {
+            console.log(CliStyle.error('计划包含无效操作，无法应用。'));
+            const { forceApply } = await inquirer.prompt([{
+              type: 'confirm',
+              name: 'forceApply',
+              message: '是否强制应用可能无效的计划？',
+              default: false
+            }]);
+            if (!forceApply) break;
           }
+
+          console.log(CliStyle.info('正在验证操作可达性...'));
+          const reachabilityValidation = await OperationValidator.validateOperationsReachability(currentOperations);
+          if (!reachabilityValidation.isValid) {
+            console.log(CliStyle.error('计划包含不可达操作，无法应用。'));
+            reachabilityValidation.errors?.forEach((error) => {
+              console.log(CliStyle.error(`  ${error}`));
+            });
+            const { forceApply } = await inquirer.prompt([{
+              type: 'confirm',
+              name: 'forceApply',
+              message: '是否强制应用可能不可达的计划？',
+              default: false
+            }]);
+            if (!forceApply) break;
+          } else {
+            console.log(CliStyle.success('✓ 所有操作可达'));
+          }
+
+          await executePlan(currentOperations, userPrompt || 'AI plan execution');
+          applied = true;
+          inReviewLoop = false;
+        } catch (error) {
+          console.error(CliStyle.error(`\n应用计划失败: ${(error as Error).message}`));
+          inReviewLoop = false;
+          throw error;
         }
+      }
         break;
 
       case 'review':
