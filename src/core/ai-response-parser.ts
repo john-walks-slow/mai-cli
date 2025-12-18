@@ -311,7 +311,7 @@ async function tryParseAsJson(response: string): Promise<AiOperation[]> {
 export async function parseAiResponse(
   response: string,
   shouldValidate = true,
-  looseMode: boolean = true
+  looseMode: boolean = false
 ): Promise<AiOperation[]> {
   const trimmed = response.trim();
   if (!trimmed) {

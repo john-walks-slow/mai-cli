@@ -34,6 +34,7 @@ export async function executePlan(
   fileOriginalContents: Map<string, string>;
   successfulOps: number;
   failedOps: number;
+  failedOperations?: Array<{ operation: FileOperation; error: string }>;
 }> {
   console.log(CliStyle.info('\n正在执行计划...'));
 
@@ -74,6 +75,8 @@ export async function executePlan(
     success: boolean;
     error?: string;
   }> = [];
+  const failedOperations: Array<{ operation: FileOperation; error: string }> =
+    [];
   let successfulOps = 0;
   let failedOps = 0;
 
@@ -114,11 +117,15 @@ export async function executePlan(
         error instanceof Error ? error.message : String(error);
       result.error = errorMessage;
       executionResults.push(result);
+      failedOperations.push({ operation: op, error: errorMessage });
       failedOps++;
 
       console.error(
         CliStyle.error(
-          `\n  执行失败: ${JSON.stringify({ type: op.type, filePath: op.type === 'move' ? op.newPath : op.filePath })}`
+          `\n  执行失败: ${JSON.stringify({
+            type: op.type,
+            filePath: op.type === 'move' ? op.newPath : op.filePath
+          })}`
         )
       );
       console.error(CliStyle.error(`    错误: ${errorMessage}`));
@@ -139,5 +146,11 @@ export async function executePlan(
 
   console.log(CliStyle.success('✓ 所有操作执行成功！'));
 
-  return { executionResults, fileOriginalContents, successfulOps, failedOps };
+  return {
+    executionResults,
+    fileOriginalContents,
+    successfulOps,
+    failedOps,
+    failedOperations: failedOperations.length > 0 ? failedOperations : undefined
+  };
 }
