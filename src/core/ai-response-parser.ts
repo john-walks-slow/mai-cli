@@ -104,6 +104,20 @@ async function parseSingleOperationBlock(
         ) {
           operation[key] = await toAbsolutePath(value);
           continue;
+        } else if (key === 'recursive' || key === 'maxDepth' || key === 'contextLines') {
+          // 解析布尔值和数字
+          if (value === 'true') {
+            operation[key] = true;
+            continue;
+          } else if (value === 'false') {
+            operation[key] = false;
+            continue;
+          }
+          const numValue = Number(value);
+          if (!isNaN(numValue)) {
+            operation[key] = numValue;
+            continue;
+          }
         }
 
         if (key && value) {

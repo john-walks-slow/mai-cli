@@ -44,7 +44,7 @@ async function parseIgnoreFile(filePath: string): Promise<string[]> {
 export async function isFileIgnored(relativePath: string): Promise<boolean> {
   try {
     const root = await findGitRoot();
-    const { getFollowGitIgnore } = await import('./config-manager');
+    const { getFollowGitIgnore } = await import('../config');
     const followGitIgnore = await getFollowGitIgnore();
 
     let allPatterns: string[] = [];

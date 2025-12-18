@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { CliStyle } from './cli-style';
-import { getDiffViewer } from './config-manager';
+import { getDiffViewer } from '../config';
 
 /**
  * 在用户的默认文本编辑器中打开内容（硬编码为VS Code）。

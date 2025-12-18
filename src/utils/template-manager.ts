@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { getMaiConfigDir } from './config-manager';
+import { getMaiConfigDir } from '../config';
 import { CliStyle } from './cli-style';
 
 /**

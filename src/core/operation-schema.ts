@@ -6,7 +6,10 @@ export const OperationTypeSchema = z.enum([
   'create',
   'edit',
   'move',
-  'delete'
+  'delete',
+  'list_directory',
+  'search_content',
+  'read_file'
 ]);
 
 export const BaseOperationSchema = z.object({
@@ -43,6 +46,34 @@ export const DeleteOperationSchema = BaseOperationSchema.extend({
   filePath: z.string().min(1)
 });
 
+export const ListDirectoryOperationSchema = BaseOperationSchema.extend({
+  type: z.literal('list_directory'),
+  path: z.string().min(1),
+  recursive: z.boolean().optional(),
+  maxDepth: z.number().optional()
+});
+
+export const SearchContentOperationSchema = BaseOperationSchema.extend({
+  type: z.literal('search_content'),
+  path: z.string().min(1),
+  pattern: z.string().min(1),
+  filePattern: z.string().optional(),
+  contextLines: z.number().optional()
+});
+
+export const ReadFileOperationSchema = BaseOperationSchema.extend({
+  type: z.literal('read_file'),
+  path: z.string().min(1),
+  start: z.number().optional(),
+  end: z.number().optional()
+});
+
+export const ContextOperationSchema = z.union([
+  ListDirectoryOperationSchema,
+  SearchContentOperationSchema,
+  ReadFileOperationSchema
+]);
+
 export const FileOperationSchema = z.union([
   CreateOperationSchema,
   EditOperationSchema,
@@ -52,6 +83,7 @@ export const FileOperationSchema = z.union([
 
 export const AiOperationSchema = z.union([
   ResponseOperationSchema,
+  ContextOperationSchema,
   FileOperationSchema
 ]);
 
@@ -152,6 +184,30 @@ export type MoveOperation = z.infer<typeof MoveOperationSchema>;
 export type DeleteOperation = z.infer<typeof DeleteOperationSchema>;
 
 /**
+ * ListDirectory 操作类型
+ */
+export type ListDirectoryOperation = z.infer<
+  typeof ListDirectoryOperationSchema
+>;
+
+/**
+ * SearchContent 操作类型
+ */
+export type SearchContentOperation = z.infer<
+  typeof SearchContentOperationSchema
+>;
+
+/**
+ * ReadFile 操作类型
+ */
+export type ReadFileOperation = z.infer<typeof ReadFileOperationSchema>;
+
+/**
+ * 信息收集操作的联合类型
+ */
+export type ContextOperation = z.infer<typeof ContextOperationSchema>;
+
+/**
  * 所有 AI 操作的联合类型
  */
 export type AiOperation = z.infer<typeof AiOperationSchema>;
@@ -160,3 +216,26 @@ export type AiOperation = z.infer<typeof AiOperationSchema>;
  * 文件操作的联合类型
  */
 export type FileOperation = z.infer<typeof FileOperationSchema>;
+
+/**
+ * 判断操作是否为信息收集操作
+ */
+export function isContextOperation(op: AiOperation): op is ContextOperation {
+  return (
+    op.type === 'list_directory' ||
+    op.type === 'search_content' ||
+    op.type === 'read_file'
+  );
+}
+
+/**
+ * 判断操作是否为文件操作
+ */
+export function isFileOperation(op: AiOperation): op is FileOperation {
+  return (
+    op.type === 'create' ||
+    op.type === 'edit' ||
+    op.type === 'move' ||
+    op.type === 'delete'
+  );
+}

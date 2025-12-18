@@ -8,7 +8,7 @@ import {
   getCurrentModel,
   getCurrentModelName,
   parseModel
-} from './config-manager';
+} from '../config';
 import { env } from 'process';
 import { setGlobalDispatcher, EnvHttpProxyAgent } from 'undici';
 

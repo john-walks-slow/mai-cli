@@ -6,6 +6,40 @@ import { startDelimiter, endDelimiter } from './operation-definitions';
 import { writeFileSync } from 'fs';
 import { isFileIgnored } from '../utils/file-utils';
 
+/**
+ * 格式化文件块的统一函数
+ */
+export function formatFileBlock(
+  filePath: string,
+  content: string,
+  options?: {
+    range?: string;
+    comment?: string;
+    matchRanges?: string;
+  }
+): string {
+  let fileBlock = `${startDelimiter('FILE')}\n`;
+  fileBlock += `${startDelimiter('metadata')}\npath: ${filePath}\n`;
+  
+  if (options?.range) {
+    fileBlock += `range: ${options.range}\n`;
+  }
+  if (options?.matchRanges) {
+    fileBlock += `matchRanges: ${options.matchRanges}\n`;
+  }
+  if (options?.comment) {
+    fileBlock += `comment: ${options.comment}\n`;
+  }
+  
+  fileBlock += `${endDelimiter('metadata')}\n`;
+  fileBlock += `${startDelimiter('content')}\n`;
+  fileBlock += `${content}\n`;
+  fileBlock += `${endDelimiter('content')}\n`;
+  fileBlock += endDelimiter('FILE');
+  
+  return fileBlock;
+}
+
 export interface FileContextItem {
   path: string;
   content?: string;
@@ -215,28 +249,15 @@ export async function formatFileContexts(
         extractedLines = lines;
       }
 
-      // 添加行号标记
-      const numberedContent = extractedLines
-        .map(
-          (line, index) => `${String(displayStart + index).padStart(4)}|${line}`
-        )
-        .join('\n');
-      let fileBlock = `${startDelimiter('FILE')}\n`;
-      fileBlock += `${startDelimiter('metadata')}\npath: ${item.path}\n`;
-      const rangeDesc =
-        item.start !== undefined ? `${item.start}-${item.end ?? 'end'}` : '';
-      if (rangeDesc) {
-        fileBlock += `range: ${rangeDesc}\n`;
-      }
-      if (item.comment) {
-        fileBlock += `comment: ${item.comment}\n`;
-      }
-      fileBlock += `${endDelimiter('metadata')}\n`;
-      // fileBlock += `\n${numberedContent}\n${endDelimiter('FILE')}`;
-      fileBlock += `${startDelimiter('content')}\n`;
-      fileBlock += `${extractedLines.join('\n')}\n`;
-      fileBlock += `${endDelimiter('content')}\n`;
-      fileBlock += endDelimiter('FILE');
+      const rangeDesc = item.start !== undefined ? `${item.start}-${item.end ?? 'end'}` : undefined;
+      const fileBlock = formatFileBlock(
+        item.path,
+        extractedLines.join('\n'),
+        {
+          range: rangeDesc,
+          comment: item.comment
+        }
+      );
       contents.push(fileBlock);
     } catch (error) {
       console.log(

@@ -69,6 +69,37 @@ export class OperationDescriptions {
         }
       }
     },
+    list_directory: {
+      description: '列出目录结构，用于了解项目文件组织。',
+      fields: {
+        type: { example: 'list_directory' },
+        path: { example: 'src/core', description: '要列出的目录路径' },
+        recursive: { example: 'false', optional: true, description: '是否递归列出子目录' },
+        maxDepth: { example: '2', optional: true, description: '最大递归深度' },
+        comment: { example: '查看核心模块结构', optional: true }
+      }
+    },
+    search_content: {
+      description: '搜索文件内容，用于查找特定代码或文本。',
+      fields: {
+        type: { example: 'search_content' },
+        path: { example: 'src', description: '搜索路径' },
+        pattern: { example: 'autoContext', description: '搜索模式（支持正则）' },
+        filePattern: { example: '*.ts', optional: true, description: '文件过滤模式' },
+        contextLines: { example: '3', optional: true, description: '上下文行数' },
+        comment: { example: '查找 autoContext 相关代码', optional: true }
+      }
+    },
+    read_file: {
+      description: '读取文件内容，用于查看具体实现。',
+      fields: {
+        type: { example: 'read_file' },
+        path: { example: 'src/core/main-processor.ts', description: '文件路径' },
+        start: { example: '10', optional: true, description: '起始行号' },
+        end: { example: '50', optional: true, description: '结束行号' },
+        comment: { example: '查看主处理器实现', optional: true }
+      }
+    },
     create: {
       description:
         '创建新文件，如果目录不存在，会递归创建目录。禁止用于修改已有文件，覆写已有文件请使用 edit。',
