@@ -1,62 +1,73 @@
 import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
+import { z } from 'zod';
 
 import { CliStyle } from '../utils/cli-style';
 import {
-  ConfigOption,
-  getAvailableModels,
-  getConfigurableOptions,
-  getCurrentModel,
-  getHistoryDepth,
-  getSystemPrompt,
-  getTemperature,
   loadConfig,
-  parseModel,
-  resetConfigCache,
   saveConfig,
-  setModel,
-  setSystemPrompt
+  resetConfigCache,
+  getCurrentModel,
+  parseModel,
+  getAvailableModels,
+  getConfigValue,
+  setConfigValue,
+  getNestedConfig,
+  setNestedConfig
 } from '../utils/config-manager';
+import { ConfigSchema, CONFIG_METADATA } from '../utils/config-schema';
 
-/**
- * 列出当前配置。
- */
+export async function showConfigOptions(): Promise<void> {
+  try {
+    console.log(CliStyle.info('\n--- 可配置选项 ---\n'));
+    
+    for (const [key, meta] of Object.entries(CONFIG_METADATA)) {
+      console.log(CliStyle.success(key));
+      console.log(`  名称: ${meta.name}`);
+      console.log(`  说明: ${meta.description}`);
+      console.log(`  类型: ${meta.type}`);
+      
+      if ('options' in meta) {
+        console.log(`  可选值: ${meta.options.join(', ')}`);
+      }
+      
+      const currentValue = key.includes('.')
+        ? await getNestedConfig(key)
+        : await getConfigValue(key as any);
+      console.log(`  当前值: ${currentValue ?? '(未设置)'}`);
+      console.log('');
+    }
+    
+    console.log(CliStyle.info('使用 mai config set <key> <value> 来修改配置\n'));
+  } catch (error) {
+    console.error(CliStyle.error(`显示配置选项失败: ${(error as Error).message}`));
+    process.exit(1);
+  }
+}
+
 export async function listConfig(): Promise<void> {
   try {
-    const config = await loadConfig();
     const currentModel = await getCurrentModel();
-    const systemPrompt = await getSystemPrompt();
-    const historyDepth = await getHistoryDepth();
-    const temperature = await getTemperature();
-    const { getHistoryScope } = await import('../utils/config-manager');
-    const historyScope = await getHistoryScope();
-
     const parsedModel = await parseModel(currentModel);
     const modelDisplay = parsedModel
       ? `${parsedModel.provider} / ${parsedModel.modelName}`
       : currentModel;
 
     console.log(CliStyle.info('\n--- 当前配置 ---'));
-
     console.log(`模型: ${CliStyle.success(modelDisplay)}`);
-    console.log(`历史深度: ${historyDepth ?? '0 (默认)'}`);
-    console.log(`历史记录范围: ${historyScope}`);
-    console.log(`Temperature: ${temperature}`);
-
-    if (systemPrompt) {
-      console.log(
-        `系统提示词: ${CliStyle.muted('(已配置，长度: ' + systemPrompt.length + ' 字符)')}`
-      );
-    } else {
-      console.log(`系统提示词: ${CliStyle.warning('使用默认')}`);
+    
+    for (const [key, meta] of Object.entries(CONFIG_METADATA)) {
+      if (key === 'model') continue;
+      const value = key.includes('.')
+        ? await getNestedConfig(key)
+        : await getConfigValue(key as any);
+      if (value !== undefined) {
+        console.log(`${meta.name}: ${value}`);
+      }
     }
 
-    console.log(
-      CliStyle.info(
-        `配置文件位置: ${path.join(os.homedir(), '.mai/config.json5')}`
-      )
-    );
+    console.log(CliStyle.info(`\n配置文件: ${path.join(os.homedir(), '.mai/config.json5')}`));
     console.log(CliStyle.info('--------------------------\n'));
   } catch (error) {
     console.error(CliStyle.error(`列出配置失败: ${(error as Error).message}`));
@@ -103,49 +114,57 @@ export async function resetConfig(): Promise<void> {
  * @param key - 配置键，如 'model', 'systemPrompt', 'historyDepth'
  * @param value - 配置值字符串，将根据类型转换
  */
-export async function directSetConfig(
-  key: string,
-  value: string
-): Promise<void> {
+export async function directSetConfig(key: string, value: string): Promise<void> {
   try {
-    const options = await getConfigurableOptions();
-    const option = options.find((o: ConfigOption) => o.key === key);
-
-    if (!option) {
-      throw new Error(
-        `不支持的配置键: ${key}。可用键: ${options.map((o) => o.key).join(', ')}`
-      );
+    const meta = CONFIG_METADATA[key as keyof typeof CONFIG_METADATA];
+    if (!meta) {
+      throw new Error(`不支持的配置键: ${key}`);
     }
 
     let convertedValue: any = value;
 
-    // 根据类型转换值
-    if (option.type === 'number') {
-      const num = Number(value);
-      if (isNaN(num)) {
-        throw new Error(`无效的数字值 for ${key}: ${value}`);
+    if (meta.type === 'number') {
+      convertedValue = Number(value);
+      if (isNaN(convertedValue)) {
+        throw new Error(`无效的数字值: ${value}`);
       }
-      if (option.min !== undefined && num < option.min) {
-        throw new Error(`值 ${num} 小于最小值 ${option.min}`);
+    } else if (meta.type === 'boolean') {
+      convertedValue = value === 'true';
+    } else if (meta.type === 'select' && 'options' in meta) {
+      if (!meta.options.includes(value as any)) {
+        throw new Error(`无效值，可选: ${meta.options.join(', ')}`);
       }
-      if (option.max !== undefined && num > option.max) {
-        throw new Error(`值 ${num} 大于最大值 ${option.max}`);
-      }
-      convertedValue = num;
-    } else if (option.type === 'select') {
-      if (option.options && !option.options.includes(value)) {
-        throw new Error(
-          `无效的选择值 for ${key}: ${value}。可用选项: ${option.options.join(', ')}`
-        );
-      }
-    } // text 类型直接用字符串
+    }
 
-    await option.setter(convertedValue);
+    // 验证配置
+    const testConfig = await loadConfig();
+    if (key.includes('.')) {
+      const keys = key.split('.');
+      let target: any = testConfig;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!target[keys[i]]) target[keys[i]] = {};
+        target = target[keys[i]];
+      }
+      target[keys[keys.length - 1]] = convertedValue;
+    } else {
+      (testConfig as any)[key] = convertedValue;
+    }
+    
+    ConfigSchema.parse(testConfig);
+
+    if (key.includes('.')) {
+      await setNestedConfig(key, convertedValue);
+    } else {
+      await setConfigValue(key as any, convertedValue);
+    }
+
     console.log(CliStyle.success(`${key} 已设置为: ${convertedValue}`));
   } catch (error) {
-    console.error(
-      CliStyle.error(`设置 ${key} 失败: ${(error as Error).message}`)
-    );
+    if (error instanceof z.ZodError) {
+      console.error(CliStyle.error(`验证失败: ${error.issues[0].message}`));
+    } else {
+      console.error(CliStyle.error(`设置失败: ${(error as Error).message}`));
+    }
     process.exit(1);
   }
 }

@@ -44,7 +44,10 @@ export async function getFileContext(filePatterns: string[]): Promise<string> {
         for (const file of matchedFiles) {
           // 应用 .maiignore 过滤
           const relativePath = path.relative(rootDir, file);
-          if (await isFileIgnored(relativePath)) continue;
+          if (await isFileIgnored(relativePath)) {
+            console.log(CliStyle.warning(`文件已被忽略: ${relativePath}`));
+            continue;
+          }
           
           const ranges = fileRanges.get(file) || [];
           ranges.push({ start: undefined, end: undefined });

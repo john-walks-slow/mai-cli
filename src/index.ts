@@ -9,7 +9,7 @@ import { executePlanFromSource } from './commands/exec-plan';
 import { CliStyle } from './utils/cli-style';
 import * as packageJson from '../package.json';
 import { listAvailableModels, selectModelInteractive } from './commands/model';
-import { listConfig, resetConfig, directSetConfig } from './commands/config';
+import { listConfig, resetConfig, directSetConfig, showConfigOptions } from './commands/config';
 import {
   clearHistory,
   deleteHistory,
@@ -412,6 +412,11 @@ program
   .addCommand(
     new Command('list').description('列出当前配置。').action(async () => {
       await listConfig();
+    })
+  )
+  .addCommand(
+    new Command('options').description('显示所有可配置选项及其说明。').action(async () => {
+      await showConfigOptions();
     })
   )
   .addCommand(
