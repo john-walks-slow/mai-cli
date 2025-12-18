@@ -40,16 +40,17 @@ jobs:
         uses: actions-ecosystem/action-get-latest-tag@v1
         id: get-latest-tag
 
-      - name: Publish GitHub Release
-        uses: release-drafter/release-drafter@v6
-        if: ${{ contains(steps.get-latest-tag.outputs.tag, steps.version.outputs.value) == false }}
-        with:
-          version: ${{ steps.version.outputs.value }}
-          publish: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      # - name: Publish GitHub Release
+      #   uses: release-drafter/release-drafter@v6
+      #   if: ${{ contains(steps.get-latest-tag.outputs.tag, steps.version.outputs.value) == false }}
+      #   with:
+      #     version: ${{ steps.version.outputs.value }}
+      #     publish: true
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Publish to NPM
+        if: ${{ contains(steps.get-latest-tag.outputs.tag, steps.version.outputs.value) == false }}
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
