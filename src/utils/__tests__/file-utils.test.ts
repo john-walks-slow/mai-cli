@@ -1,4 +1,12 @@
-import { replaceInFile, computeFindMatchCount } from '../file-utils';
+import { replaceInFile, computeFindMatchCount, isFileIgnored } from '../file-utils';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+jest.mock('fs/promises');
+jest.mock('../cli-style');
+jest.mock('../config-manager', () => ({
+  getFollowGitIgnore: jest.fn().mockResolvedValue(false)
+}));
 
 describe('File Utils', () => {
   describe('replaceInFile', () => {
@@ -55,6 +63,50 @@ describe('File Utils', () => {
       const content = 'Line1\r\nLine2\r\nLine3';
       const count = computeFindMatchCount(content, 'Line1\nLine2');
       expect(count).toBe(1);
+    });
+  });
+
+  describe('isFileIgnored', () => {
+    const mockReadFile = fs.readFile as jest.MockedFunction<typeof fs.readFile>;
+    
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should ignore files matching positive patterns', async () => {
+      mockReadFile.mockResolvedValue('**/__tests__/**\n');
+      const result = await isFileIgnored('src/utils/__tests__/file.test.ts');
+      expect(result).toBe(true);
+    });
+
+    it('should not ignore files with negative patterns', async () => {
+      mockReadFile.mockResolvedValue('**/__tests__/**\n!**/__tests__/important.test.ts\n');
+      const result = await isFileIgnored('src/utils/__tests__/important.test.ts');
+      expect(result).toBe(false);
+    });
+
+    it('should ignore files matching pattern but not negative pattern', async () => {
+      mockReadFile.mockResolvedValue('**/__tests__/**\n!**/__tests__/important.test.ts\n');
+      const result = await isFileIgnored('src/utils/__tests__/other.test.ts');
+      expect(result).toBe(true);
+    });
+
+    it('should not ignore files not matching any pattern', async () => {
+      mockReadFile.mockResolvedValue('**/__tests__/**\n');
+      const result = await isFileIgnored('src/utils/file-utils.ts');
+      expect(result).toBe(false);
+    });
+
+    it('should handle empty maiignore file', async () => {
+      mockReadFile.mockResolvedValue('');
+      const result = await isFileIgnored('src/utils/file-utils.ts');
+      expect(result).toBe(false);
+    });
+
+    it('should ignore comments and empty lines', async () => {
+      mockReadFile.mockResolvedValue('# Comment\n\n**/__tests__/**\n');
+      const result = await isFileIgnored('src/utils/__tests__/file.test.ts');
+      expect(result).toBe(true);
     });
   });
 });

@@ -1,8 +1,10 @@
 import * as fs from 'fs/promises';
+import * as path from 'path';
 import { glob } from 'glob';
 import { CliStyle } from '../utils/cli-style';
 import { startDelimiter, endDelimiter } from './operation-definitions';
 import { writeFileSync } from 'fs';
+import { isFileIgnored } from '../utils/file-utils';
 
 export interface FileContextItem {
   path: string;
@@ -38,7 +40,12 @@ export async function getFileContext(filePatterns: string[]): Promise<string> {
           absolute: true,
           windowsPathsNoEscape: true
         });
+        const rootDir = process.cwd();
         for (const file of matchedFiles) {
+          // 应用 .maiignore 过滤
+          const relativePath = path.relative(rootDir, file);
+          if (await isFileIgnored(relativePath)) continue;
+          
           const ranges = fileRanges.get(file) || [];
           ranges.push({ start: undefined, end: undefined });
           fileRanges.set(file, ranges);
