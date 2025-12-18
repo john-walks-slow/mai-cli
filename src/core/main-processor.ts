@@ -13,7 +13,7 @@ import {
   getTemperature
 } from '../utils/config-manager';
 import { CliStyle } from '../utils/cli-style';
-import { prepareAutoContext } from './context-agent';
+import { prepareAutoContext } from './auto-context';
 import { createUserPrompt, constructSystemPrompt } from '../constants/prompts';
 import { streamAiResponse } from '../utils/network';
 import { parseAiResponse } from './ai-response-parser';
@@ -105,11 +105,7 @@ async function buildContext(
 
   if (autoContext) {
     console.log(CliStyle.info('启用自动上下文准备...'));
-    const autoItems = await prepareAutoContext(userPrompt);
-    additionalFiles = autoItems.map((item) => item.path);
-    console.log(
-      CliStyle.info(`自动上下文添加了 ${additionalFiles.length} 个文件`)
-    );
+    additionalFiles = await prepareAutoContext(userPrompt);
   }
 
   if (historyIds && historyIds.length > 0) {
