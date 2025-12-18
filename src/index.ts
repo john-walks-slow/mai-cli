@@ -25,6 +25,7 @@ import {
   deleteTemplate
 } from './commands/template';
 import { startDelimiter } from './core/operation-definitions';
+import { writeFileContext } from './core/file-context';
 
 const program = new Command();
 
@@ -228,7 +229,11 @@ program
       process.exit(1);
     }
   });
-
+program
+  .command('collect-context [files...]')
+  .action((files: string[], options, command) => {
+    writeFileContext(files);
+  });
 /**
  * 定义 'history' 命令，用于版本管理。
  */

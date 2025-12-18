@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import { glob } from 'glob';
 import { CliStyle } from '../utils/cli-style';
 import { startDelimiter, endDelimiter } from './operation-definitions';
+import { writeFileSync } from 'fs';
 
 export interface FileContextItem {
   path: string;
@@ -10,6 +11,12 @@ export interface FileContextItem {
   start?: number;
   end?: number;
 }
+
+export async function writeFileContext(filePatterns: string[]) {
+  writeFileSync('./fileContext.txt', await getFileContext(filePatterns));
+  console.log(CliStyle.success('已写入文件: ./fileContext.txt'));
+}
+
 /**
  * 读取指定文件的内容并将其格式化为上下文。
  * 支持文件路径中的 glob 模式以包含多个文件。
