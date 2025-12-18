@@ -10,16 +10,12 @@ import {
   parseModel
 } from './config-manager';
 import { env } from 'process';
-import { setGlobalDispatcher, ProxyAgent } from 'undici';
+import { setGlobalDispatcher, EnvHttpProxyAgent } from 'undici';
 
-if (env.https_proxy) {
-  // Corporate proxy uses CA not in undici's certificate store
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-  const dispatcher = new ProxyAgent({
-    uri: new URL(env.https_proxy).toString()
-  });
-  setGlobalDispatcher(dispatcher);
-}
+// Corporate proxy uses CA not in undici's certificate store
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const dispatcher = new EnvHttpProxyAgent();
+setGlobalDispatcher(dispatcher);
 
 /**
  * 延迟执行指定毫秒数。
