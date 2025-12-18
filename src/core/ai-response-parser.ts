@@ -70,7 +70,8 @@ async function parseSingleOperationBlock(
         (looseMode && trimmedLine === '--- end content ---')
       ) {
         const rawContent = contentLines.join('\n');
-        operation[currentContentKey.toLowerCase()] = unescapeDelimiters(rawContent);
+        operation[currentContentKey.toLowerCase()] =
+          unescapeDelimiters(rawContent);
 
         contentLines = [];
         currentContentKey = null;
@@ -122,7 +123,8 @@ async function parseSingleOperationBlock(
   if (currentContentKey) {
     if (looseMode) {
       const rawContent = contentLines.join('\n');
-      operation[currentContentKey.toLowerCase()] = unescapeDelimiters(rawContent);
+      operation[currentContentKey.toLowerCase()] =
+        unescapeDelimiters(rawContent);
       console.log(
         CliStyle.warning(
           `自动关闭未闭合的 ${currentContentKey.toLowerCase()} 块`

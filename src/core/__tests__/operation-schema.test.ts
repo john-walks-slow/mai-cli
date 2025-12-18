@@ -70,10 +70,7 @@ describe('Operation Schema', () => {
     });
 
     it('should reject if any operation is invalid', () => {
-      const ops = [
-        { type: 'response', content: 'Test' },
-        { type: 'create' }
-      ];
+      const ops = [{ type: 'response', content: 'Test' }, { type: 'create' }];
       const result = validateOperations(ops);
       expect(result.isValid).toBe(false);
     });

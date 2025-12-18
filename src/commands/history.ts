@@ -14,7 +14,7 @@ import { MAI_CONFIG_DIR_NAME, HISTORY_FILE_NAME } from '../constants/mai-data';
 export async function getHistoryFile(): Promise<string> {
   const { getHistoryScope } = await import('../utils/config-manager');
   const scope = await getHistoryScope();
-  
+
   if (scope === 'project') {
     const { findGitRoot } = await import('../utils/file-utils');
     try {
@@ -27,7 +27,7 @@ export async function getHistoryFile(): Promise<string> {
       console.warn('无法确定项目根目录，使用全局历史记录');
     }
   }
-  
+
   return path.join(os.homedir(), MAI_CONFIG_DIR_NAME, HISTORY_FILE_NAME);
 }
 
@@ -102,11 +102,7 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
  */
 export async function saveHistory(history: HistoryEntry[]): Promise<void> {
   const historyFile = await getHistoryFile();
-  await fs.writeFile(
-    historyFile,
-    JSON.stringify(history, null, 2),
-    'utf-8'
-  );
+  await fs.writeFile(historyFile, JSON.stringify(history, null, 2), 'utf-8');
 }
 
 /**
@@ -168,8 +164,8 @@ export async function listHistory(
       entry.applied === undefined
         ? ''
         : entry.applied
-        ? ' (已应用)'
-        : ' (未应用)';
+          ? ' (已应用)'
+          : ' (未应用)';
     console.log(
       `${CliStyle.info(
         `${
@@ -388,7 +384,9 @@ export async function saveAiHistory(
         Object.keys(originalFileContents).length > 0
           ? originalFileContents
           : undefined,
-      applied: operations.some((op) => op.type !== 'response') ? true : undefined,
+      applied: operations.some((op) => op.type !== 'response')
+        ? true
+        : undefined,
       ...(files && files.length > 0 ? { files } : {})
     };
 

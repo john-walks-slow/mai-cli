@@ -48,10 +48,14 @@ describe('Template Manager', () => {
     });
 
     it('should filter non-template files', async () => {
-      (fs.readdir as jest.Mock).mockResolvedValue(['test.txt', 'test.md', 'other.js']);
+      (fs.readdir as jest.Mock).mockResolvedValue([
+        'test.txt',
+        'test.md',
+        'other.js'
+      ]);
       (fs.stat as jest.Mock).mockResolvedValue({ isFile: () => true });
       (fs.readFile as jest.Mock).mockResolvedValue('content');
-      
+
       const templates = await TemplateManager.listTemplates();
       expect(templates.length).toBe(2);
     });

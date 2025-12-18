@@ -10,12 +10,16 @@ describe('File Utils', () => {
 
     it('should throw when find has no matches', () => {
       const original = 'Hello World';
-      expect(() => replaceInFile(original, 'New', 'NotFound')).toThrow('未找到匹配项');
+      expect(() => replaceInFile(original, 'New', 'NotFound')).toThrow(
+        '未找到匹配项'
+      );
     });
 
     it('should throw when find has multiple matches', () => {
       const original = 'Test\nTest\nTest';
-      expect(() => replaceInFile(original, 'New', 'Test')).toThrow('找到多个匹配项');
+      expect(() => replaceInFile(original, 'New', 'Test')).toThrow(
+        '找到多个匹配项'
+      );
     });
 
     it('should replace entire content when find is undefined', () => {

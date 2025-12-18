@@ -42,15 +42,15 @@ function generateUnifiedDiff(
 ): string {
   const originalLines = originalContent.split('\n');
   const newLines = newContent.split('\n');
-  
+
   let diff = `--- ${filePath}\n+++ ${filePath}\n`;
-  
+
   const maxLen = Math.max(originalLines.length, newLines.length);
   let hunkStart = -1;
   let hunkLines: string[] = [];
   let oldCount = 0;
   let newCount = 0;
-  
+
   const flushHunk = () => {
     if (hunkStart !== -1 && hunkLines.length > 0) {
       diff += `@@ -${hunkStart + 1},${oldCount} +${hunkStart + 1},${newCount} @@\n`;
@@ -61,14 +61,14 @@ function generateUnifiedDiff(
       newCount = 0;
     }
   };
-  
+
   for (let i = 0; i < maxLen; i++) {
     const oldLine = originalLines[i];
     const newLine = newLines[i];
-    
+
     if (oldLine !== newLine) {
       if (hunkStart === -1) hunkStart = i;
-      
+
       if (oldLine !== undefined) {
         hunkLines.push(`-${oldLine}`);
         oldCount++;
@@ -81,9 +81,9 @@ function generateUnifiedDiff(
       flushHunk();
     }
   }
-  
+
   flushHunk();
-  
+
   return diff;
 }
 
@@ -98,35 +98,46 @@ export async function showDiffInVsCode(
   const viewer = await getDiffViewer();
   const tempDir = path.join(process.cwd(), '.ai-temp');
   await fs.mkdir(tempDir, { recursive: true }).catch(() => {});
-  
+
   const timestamp = Date.now();
-  const baseName = fileNameHint ? path.basename(fileNameHint, path.extname(fileNameHint)) : 'mai';
+  const baseName = fileNameHint
+    ? path.basename(fileNameHint, path.extname(fileNameHint))
+    : 'mai';
   const extName = fileNameHint ? path.extname(fileNameHint) : '.tmp';
-  
-  const originalPath = path.join(tempDir, `${baseName}-original-${timestamp}${extName}`);
+
+  const originalPath = path.join(
+    tempDir,
+    `${baseName}-original-${timestamp}${extName}`
+  );
   const newPath = path.join(tempDir, `${baseName}-new-${timestamp}${extName}`);
   const patchPath = path.join(tempDir, `${baseName}-${timestamp}.patch`);
 
   try {
     await fs.writeFile(originalPath, originalContent, 'utf8');
     await fs.writeFile(newPath, newContent, 'utf8');
-    
-    const patch = generateUnifiedDiff(originalContent, newContent, fileNameHint || 'file');
+
+    const patch = generateUnifiedDiff(
+      originalContent,
+      newContent,
+      fileNameHint || 'file'
+    );
     await fs.writeFile(patchPath, patch, 'utf8');
-    
+
     await runProcess(viewer, ['--diff', '--wait', originalPath, newPath]);
-    
+
     const editedContent = await fs.readFile(newPath, 'utf8');
-    
+
     if (editedContent !== newContent) {
       console.log(CliStyle.success('检测到并保存了差异审查中的修改。'));
       return editedContent;
     }
-    
+
     console.log(CliStyle.muted('在差异审查中未检测到修改。'));
     return null;
   } catch (error) {
-    console.error(CliStyle.error(`打开diff查看器时出错: ${(error as Error).message}`));
+    console.error(
+      CliStyle.error(`打开diff查看器时出错: ${(error as Error).message}`)
+    );
     return null;
   } finally {
     await Promise.all([

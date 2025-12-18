@@ -472,7 +472,9 @@ export async function getHistoryScope(): Promise<'global' | 'project'> {
   }
 }
 
-export async function setHistoryScope(scope: 'global' | 'project'): Promise<void> {
+export async function setHistoryScope(
+  scope: 'global' | 'project'
+): Promise<void> {
   const config = await loadConfig();
   config.historyScope = scope;
   await saveConfig(config);

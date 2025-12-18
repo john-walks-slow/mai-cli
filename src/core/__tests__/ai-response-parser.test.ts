@@ -16,7 +16,7 @@ describe('AI Response Parser', () => {
         CONTENT_END,
         OP_END
       ].join('\n');
-      
+
       const ops = await parseAiResponse(response);
       expect(ops).toHaveLength(1);
       expect(ops[0].type).toBe('response');
@@ -33,7 +33,7 @@ describe('AI Response Parser', () => {
         CONTENT_END,
         OP_END
       ].join('\n');
-      
+
       const ops = await parseAiResponse(response);
       expect(ops).toHaveLength(1);
       expect(ops[0].type).toBe('create');
@@ -56,7 +56,7 @@ describe('AI Response Parser', () => {
         CONTENT_END,
         OP_END
       ].join('\n');
-      
+
       const ops = await parseAiResponse(response);
       expect(ops).toHaveLength(2);
     });
@@ -67,12 +67,8 @@ describe('AI Response Parser', () => {
     });
 
     it('should skip invalid operations', async () => {
-      const response = [
-        OP_START,
-        'type: invalid',
-        OP_END
-      ].join('\n');
-      
+      const response = [OP_START, 'type: invalid', OP_END].join('\n');
+
       const ops = await parseAiResponse(response);
       expect(ops).toHaveLength(0);
     });
@@ -80,10 +76,8 @@ describe('AI Response Parser', () => {
 
   describe('parseJsonOperations', () => {
     it('should parse JSON array format', async () => {
-      const response = JSON.stringify([
-        { type: 'response', content: 'Test' }
-      ]);
-      
+      const response = JSON.stringify([{ type: 'response', content: 'Test' }]);
+
       const ops = await parseAiResponse(response);
       expect(ops).toHaveLength(1);
       expect(ops[0].type).toBe('response');
@@ -91,7 +85,7 @@ describe('AI Response Parser', () => {
 
     it('should parse single JSON object', async () => {
       const response = JSON.stringify({ type: 'response', content: 'Test' });
-      
+
       const ops = await parseAiResponse(response);
       expect(ops).toHaveLength(1);
     });

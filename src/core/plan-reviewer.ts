@@ -318,15 +318,18 @@ export async function reviewAndExecutePlan(
     }
     console.log(CliStyle.success('✓ 所有操作可达'));
 
-        try {
-          const result = await executePlan(currentOperations, userPrompt || 'AI plan execution');
-          applied = true;
-        } catch (error) {
-          console.error(
-            CliStyle.error(`\n自动应用计划失败: ${(error as Error).message}`)
-          );
-          throw error;
-        }
+    try {
+      const result = await executePlan(
+        currentOperations,
+        userPrompt || 'AI plan execution'
+      );
+      applied = true;
+    } catch (error) {
+      console.error(
+        CliStyle.error(`\n自动应用计划失败: ${(error as Error).message}`)
+      );
+      throw error;
+    }
 
     console.log(CliStyle.success('计划已成功自动应用。'));
     return { applied };
@@ -359,34 +362,42 @@ export async function reviewAndExecutePlan(
           inReviewLoop = false;
         } else {
           try {
-            const finalValidation = OperationValidator.validateOperations(currentOperations);
+            const finalValidation =
+              OperationValidator.validateOperations(currentOperations);
             if (!finalValidation.isValid) {
               console.log(CliStyle.error('计划包含无效操作，无法应用。'));
-              const { forceApply } = await inquirer.prompt([{
-                type: 'confirm',
-                name: 'forceApply',
-                message: '是否强制应用可能无效的计划？',
-                default: false
-              }]);
+              const { forceApply } = await inquirer.prompt([
+                {
+                  type: 'confirm',
+                  name: 'forceApply',
+                  message: '是否强制应用可能无效的计划？',
+                  default: false
+                }
+              ]);
               if (!forceApply) break;
             }
 
             console.log(CliStyle.info('正在验证操作可达性...'));
-            const reachabilityValidation = await OperationValidator.validateOperationsReachability(currentOperations);
+            const reachabilityValidation =
+              await OperationValidator.validateOperationsReachability(
+                currentOperations
+              );
             if (!reachabilityValidation.isValid) {
               console.log(CliStyle.error('计划包含不可达操作，无法应用。'));
               reachabilityValidation.errors?.forEach((error) => {
                 console.log(CliStyle.error(`  ${error}`));
               });
-              const { tryAutoFix } = await inquirer.prompt([{
-                type: 'confirm',
-                name: 'tryAutoFix',
-                message: '是否尝试自动修复这些问题？',
-                default: true
-              }]);
-              
+              const { tryAutoFix } = await inquirer.prompt([
+                {
+                  type: 'confirm',
+                  name: 'tryAutoFix',
+                  message: '是否尝试自动修复这些问题？',
+                  default: true
+                }
+              ]);
+
               if (tryAutoFix) {
-                const failedOps = currentOperations.map(op => ({
+                const failedOps = currentOperations.map((op) => ({
                   operation: op,
                   error: '操作不可达或验证失败'
                 }));
@@ -397,43 +408,56 @@ export async function reviewAndExecutePlan(
                   break;
                 }
               }
-              
-              const { forceApply } = await inquirer.prompt([{
-                type: 'confirm',
-                name: 'forceApply',
-                message: '自动修复失败。是否强制应用原计划？',
-                default: false
-              }]);
+
+              const { forceApply } = await inquirer.prompt([
+                {
+                  type: 'confirm',
+                  name: 'forceApply',
+                  message: '自动修复失败。是否强制应用原计划？',
+                  default: false
+                }
+              ]);
               if (!forceApply) break;
             } else {
               console.log(CliStyle.success('✓ 所有操作可达'));
             }
 
-            const result = await executePlan(currentOperations, userPrompt || 'AI plan execution');
-            
+            const result = await executePlan(
+              currentOperations,
+              userPrompt || 'AI plan execution'
+            );
+
             if (result.failedOperations && result.failedOperations.length > 0) {
-              const { tryFix } = await inquirer.prompt([{
-                type: 'confirm',
-                name: 'tryFix',
-                message: `${result.failedOperations.length} 个操作执行失败。是否尝试自动修复？`,
-                default: true
-              }]);
-              
+              const { tryFix } = await inquirer.prompt([
+                {
+                  type: 'confirm',
+                  name: 'tryFix',
+                  message: `${result.failedOperations.length} 个操作执行失败。是否尝试自动修复？`,
+                  default: true
+                }
+              ]);
+
               if (tryFix) {
-                const fixedOps = await autoFixOperations(result.failedOperations);
+                const fixedOps = await autoFixOperations(
+                  result.failedOperations
+                );
                 if (fixedOps) {
                   currentOperations = fixedOps;
                   currentPromptMessage = '计划已自动修复，请审查并重新应用:';
                   break;
                 }
               }
-              throw new Error(`${result.failedOperations.length} 个操作执行失败`);
+              throw new Error(
+                `${result.failedOperations.length} 个操作执行失败`
+              );
             }
-            
+
             applied = true;
             inReviewLoop = false;
           } catch (error) {
-            console.error(CliStyle.error(`\n应用计划失败: ${(error as Error).message}`));
+            console.error(
+              CliStyle.error(`\n应用计划失败: ${(error as Error).message}`)
+            );
             inReviewLoop = false;
             throw error;
           }

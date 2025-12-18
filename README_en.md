@@ -121,7 +121,7 @@ A typical configuration example:
   // Model temperature
   temperature: 0.8,
   // Automatic history context depth
-  historyDepth: 0,
+  historyDepth: 0
 }
 ```
 
@@ -203,6 +203,7 @@ npm run dev
 ```
 
 **Update version and publish (automatically triggers Workflow)**
+
 ```bash
 npm version patch
 git push origin --tags

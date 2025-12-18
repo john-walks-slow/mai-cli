@@ -231,6 +231,7 @@ npm run dev
 ```
 
 **更新版本号并发布**
+
 ```bash
 # 提交修改
 git commit ...
