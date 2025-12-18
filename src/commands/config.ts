@@ -29,6 +29,8 @@ export async function listConfig(): Promise<void> {
     const systemPrompt = await getSystemPrompt();
     const historyDepth = await getHistoryDepth();
     const temperature = await getTemperature();
+    const { getHistoryScope } = await import('../utils/config-manager');
+    const historyScope = await getHistoryScope();
 
     const parsedModel = await parseModel(currentModel);
     const modelDisplay = parsedModel
@@ -39,6 +41,7 @@ export async function listConfig(): Promise<void> {
 
     console.log(`模型: ${CliStyle.success(modelDisplay)}`);
     console.log(`历史深度: ${historyDepth ?? '0 (默认)'}`);
+    console.log(`历史记录范围: ${historyScope}`);
     console.log(`Temperature: ${temperature}`);
 
     if (systemPrompt) {

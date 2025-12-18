@@ -9,9 +9,25 @@ import * as os from 'os';
 import { MAI_CONFIG_DIR_NAME, HISTORY_FILE_NAME } from '../constants/mai-data';
 
 /**
- * 获取历史记录文件路径。
+ * 获取历史记录文件路径，根据配置的scope返回全局或项目级别路径。
  */
-export function getHistoryFile() {
+export async function getHistoryFile(): Promise<string> {
+  const { getHistoryScope } = await import('../utils/config-manager');
+  const scope = await getHistoryScope();
+  
+  if (scope === 'project') {
+    const { findGitRoot } = await import('../utils/file-utils');
+    try {
+      const projectRoot = await findGitRoot();
+      const projectHistoryDir = path.join(projectRoot, MAI_CONFIG_DIR_NAME);
+      await fs.mkdir(projectHistoryDir, { recursive: true });
+      return path.join(projectHistoryDir, HISTORY_FILE_NAME);
+    } catch {
+      // 回退到全局
+      console.warn('无法确定项目根目录，使用全局历史记录');
+    }
+  }
+  
   return path.join(os.homedir(), MAI_CONFIG_DIR_NAME, HISTORY_FILE_NAME);
 }
 
@@ -72,7 +88,8 @@ export function parseIdOrName(
  */
 export async function loadHistory(): Promise<HistoryEntry[]> {
   try {
-    const data = await fs.readFile(getHistoryFile(), 'utf-8');
+    const historyFile = await getHistoryFile();
+    const data = await fs.readFile(historyFile, 'utf-8');
     return JSON.parse(data) as HistoryEntry[];
   } catch {
     return [];
@@ -84,8 +101,9 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
  * @param history - 要保存的历史记录数组。
  */
 export async function saveHistory(history: HistoryEntry[]): Promise<void> {
+  const historyFile = await getHistoryFile();
   await fs.writeFile(
-    getHistoryFile(),
+    historyFile,
     JSON.stringify(history, null, 2),
     'utf-8'
   );
@@ -355,7 +373,6 @@ export async function saveAiHistory(
   try {
     console.log(CliStyle.muted('正在保存本次AI对话历史...'));
 
-    // 转换原始文件内容为记录对象（仅为文件操作）
     const originalFileContents: Record<string, string> =
       Object.fromEntries(fileOriginalContents);
 
@@ -371,9 +388,7 @@ export async function saveAiHistory(
         Object.keys(originalFileContents).length > 0
           ? originalFileContents
           : undefined,
-      ...(operations.some((op) => op.type !== 'response')
-        ? { applied: false }
-        : {}),
+      applied: operations.some((op) => op.type !== 'response') ? true : undefined,
       ...(files && files.length > 0 ? { files } : {})
     };
 

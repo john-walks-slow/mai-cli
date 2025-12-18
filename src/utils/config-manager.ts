@@ -14,6 +14,7 @@ export interface MaiConfig {
   systemPrompt?: string; // 支持从配置文件配置系统提示词
   historyDepth?: number; // 默认历史深度，用于自动注入最近N条历史
   temperature?: number; // AI模型的temperature参数，控制输出的随机性
+  historyScope?: 'global' | 'project'; // 历史记录存储范围：全局或项目级别
   autoContext?: {
     maxRounds?: number;
     maxFiles?: number;
@@ -460,6 +461,21 @@ export async function setAutoContextMaxFiles(files: number): Promise<void> {
   await saveConfig(config);
 }
 
+export async function getHistoryScope(): Promise<'global' | 'project'> {
+  try {
+    const config = await loadConfig();
+    return config.historyScope || 'global';
+  } catch {
+    return 'global';
+  }
+}
+
+export async function setHistoryScope(scope: 'global' | 'project'): Promise<void> {
+  const config = await loadConfig();
+  config.historyScope = scope;
+  await saveConfig(config);
+}
+
 export async function getConfigurableOptions(): Promise<ConfigOption[]> {
   const availableModels = await getAvailableModels();
   const options: ConfigOption[] = [
@@ -491,6 +507,15 @@ export async function getConfigurableOptions(): Promise<ConfigOption[]> {
       setter: setHistoryDepth
     },
     {
+      key: 'historyScope',
+      name: '历史记录范围',
+      description: '历史记录存储位置：global (全局) 或 project (项目级别)',
+      type: 'select',
+      options: ['global', 'project'],
+      getter: getHistoryScope,
+      setter: setHistoryScope
+    },
+    {
       key: 'temperature',
       name: 'Temperature',
       description: 'AI模型的temperature参数，控制输出的随机性 (0-2)',
@@ -520,7 +545,6 @@ export async function getConfigurableOptions(): Promise<ConfigOption[]> {
       getter: async () => (await getAutoContextConfig()).maxFiles,
       setter: (files: number) => setAutoContextMaxFiles(files)
     }
-    // 未来可在此添加更多选项，如 templates 等
   ];
 
   return options;

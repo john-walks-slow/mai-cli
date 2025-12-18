@@ -323,16 +323,6 @@ export async function processAiResponse(
       }
     }
 
-    // 保存完整历史（包括response和file ops）
-    const historyEntry = await saveAiHistory(
-      userPrompt || '未知提示',
-      aiResponse,
-      operations,
-      fileOriginalContents,
-      undefined, // description 将在执行后更新
-      files
-    );
-
     // 步骤1：显示AI的文本响应
     if (responseOps.length > 0) {
       console.log(CliStyle.success('\n--- AI说明 ---'));
@@ -356,31 +346,30 @@ export async function processAiResponse(
           autoApply
         );
         if (applied) {
-          // 执行成功，更新历史描述和 applied
-          await updateHistoryDescription(
-            historyEntry.id,
-            `执行成功: ${fileOps.length} 个文件操作`
+          // 只有在应用后才保存历史
+          await saveAiHistory(
+            userPrompt || '未知提示',
+            aiResponse,
+            operations,
+            fileOriginalContents,
+            `执行成功: ${fileOps.length} 个文件操作`,
+            files
           );
-          await updateHistoryApplied(historyEntry.id, true);
-        } else {
-          // 用户取消，更新描述
-          await updateHistoryDescription(historyEntry.id, `未应用: 用户取消`);
         }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        // 执行失败，更新历史描述，applied 保持 false
-        await updateHistoryDescription(
-          historyEntry.id,
-          `执行失败: ${errorMessage}`
-        );
-        // Rethrow to indicate failure
         throw new Error(`文件操作执行失败: ${errorMessage}`);
       }
     } else {
-      await updateHistoryDescription(
-        historyEntry.id,
-        '仅包含AI响应，无文件操作'
+      // 纯响应操作，直接保存
+      await saveAiHistory(
+        userPrompt || '未知提示',
+        aiResponse,
+        operations,
+        fileOriginalContents,
+        '仅包含AI响应，无文件操作',
+        files
       );
       console.log(CliStyle.success('AI操作完成（仅包含说明文本）。'));
     }

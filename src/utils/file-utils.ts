@@ -5,8 +5,28 @@ import { CliStyle } from './cli-style';
 import picomatch = require('picomatch');
 
 export async function toAbsolutePath(relativePath: string): Promise<string> {
-  const root = await findGitRoot();
-  return path.resolve(root, relativePath);
+  // 如果已经是绝对路径，直接返回
+  if (path.isAbsolute(relativePath)) {
+    return path.normalize(relativePath);
+  }
+  
+  // 尝试相对于当前工作目录解析
+  const cwdResolved = path.resolve(process.cwd(), relativePath);
+  
+  // 检查文件是否存在于cwd相对路径
+  try {
+    await fs.access(cwdResolved);
+    return path.normalize(cwdResolved);
+  } catch {
+    // 文件不存在，尝试相对于git/项目根目录
+    try {
+      const root = await findGitRoot();
+      return path.normalize(path.resolve(root, relativePath));
+    } catch {
+      // 如果找不到根目录，回退到cwd
+      return path.normalize(cwdResolved);
+    }
+  }
 }
 
 export async function isFileIgnored(relativePath: string): Promise<boolean> {
