@@ -9,7 +9,12 @@ import { executePlanFromSource } from './commands/exec-plan';
 import { CliStyle } from './utils/cli-style';
 import * as packageJson from '../package.json';
 import { listAvailableModels, selectModelInteractive } from './commands/model';
-import { listConfig, resetConfig, directSetConfig, showConfigOptions } from './commands/config';
+import {
+  listConfig,
+  resetConfig,
+  directSetConfig,
+  showConfigOptions
+} from './commands/config';
 import {
   clearHistory,
   deleteHistory,
@@ -55,8 +60,8 @@ program
   .addOption(
     new Option(
       '-a, --auto-context',
-      '（实验性，不建议尝试）启用自动上下文准备，使用 AI 收集相关文件上下文。'
-    ).hideHelp()
+      '（实验性）启用自动上下文准备，允许 MAI 主动收集需要的文件上下文'
+    )
   )
   .option('-m, --model <model>', '指定使用的AI模型，覆盖默认配置。')
   .option(
@@ -415,9 +420,11 @@ program
     })
   )
   .addCommand(
-    new Command('options').description('显示所有可配置选项及其说明。').action(async () => {
-      await showConfigOptions();
-    })
+    new Command('options')
+      .description('显示所有可配置选项及其说明。')
+      .action(async () => {
+        await showConfigOptions();
+      })
   )
   .addCommand(
     new Command('set')
@@ -433,8 +440,15 @@ program
       })
   )
   .addCommand(
+    new Command('init')
+      .description('初始化配置文件（创建默认配置）。')
+      .action(async () => {
+        await resetConfig();
+      })
+  )
+  .addCommand(
     new Command('reset')
-      .description('重置所有配置到默认值。')
+      .description('重置所有配置到默认值（同 init）。')
       .action(async () => {
         await resetConfig();
       })

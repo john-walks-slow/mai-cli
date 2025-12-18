@@ -6,7 +6,7 @@ import {
   setModel,
   hasApiKey,
   getApiKey
-} from '../utils/config-manager';
+} from '../config';
 
 /**
  * 列出所有可用的 AI 模型。

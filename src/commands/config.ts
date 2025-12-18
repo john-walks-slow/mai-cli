@@ -1,7 +1,9 @@
 import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import { z } from 'zod';
+import JSON5 from 'json5';
 
 import { CliStyle } from '../utils/cli-style';
 import {
@@ -15,8 +17,8 @@ import {
   setConfigValue,
   getNestedConfig,
   setNestedConfig
-} from '../utils/config-manager';
-import { ConfigSchema, CONFIG_METADATA } from '../utils/config-schema';
+} from '../config';
+import { ConfigSchema, CONFIG_METADATA } from '../config';
 
 export async function showConfigOptions(): Promise<void> {
   try {
@@ -98,10 +100,10 @@ export async function resetConfig(): Promise<void> {
   }
 
   try {
-    // 创建空的配置对象，这将有效地清除所有自定义配置
-    const defaultConfig = {};
+    const defaultConfigPath = path.join(__dirname, '../../resources/config.json5');
+    const content = await fs.readFile(defaultConfigPath, 'utf-8');
+    const defaultConfig = JSON5.parse(content);
     await saveConfig(defaultConfig);
-    // 清除内存中的配置缓存
     resetConfigCache();
     console.log(CliStyle.success('配置已重置到默认值。'));
   } catch (error) {

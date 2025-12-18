@@ -12,7 +12,7 @@ import { MAI_CONFIG_DIR_NAME, HISTORY_FILE_NAME } from '../constants/mai-data';
  * 获取历史记录文件路径，根据配置的scope返回全局或项目级别路径。
  */
 export async function getHistoryFile(): Promise<string> {
-  const { getHistoryScope } = await import('../utils/config-manager');
+  const { getHistoryScope } = await import('../config');
   const scope = await getHistoryScope();
 
   if (scope === 'project') {
@@ -341,11 +341,14 @@ export async function redoHistory(idOrName: string): Promise<void> {
       } 个文件操作`
     )
   );
-  await reviewAndExecutePlan(
-    entry.operations.filter((op) => op.type !== 'response'),
-    ``,
-    entry.prompt
+  const fileOps = entry.operations.filter(
+    (op): op is FileOperation =>
+      op.type !== 'response' &&
+      op.type !== 'list_directory' &&
+      op.type !== 'search_content' &&
+      op.type !== 'read_file'
   );
+  await reviewAndExecutePlan(fileOps, ``, entry.prompt);
 }
 
 /**
